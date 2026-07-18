@@ -1,0 +1,42 @@
+services:
+  # ── Ollama (Local LLM Runtime) ──────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: manual-rag-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    # Uncomment below for GPU support (NVIDIA)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ── RAG API Service ─────────────────────────────────────────────────
+  rag-api:
+    build: .
+    container_name: manual-rag-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      # Mount HuggingFace cache for pre-downloaded models
+      - ${HF_HOME:-~/.cache/huggingface}:/root/.cache/huggingface
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-llama3.2-vision:11b}
+      - CHROMA_PERSIST_DIR=/app/data/chroma_db
+      - IMAGE_STORE_DIR=/app/data/images
+      - MANUAL_STORE_DIR=/app/data/manuals
+      - HF_HUB_OFFLINE=1  # Force offline mode for HuggingFace
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  ollama_data:

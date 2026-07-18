@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ManualRAG — Machine Manual Diagnostic Assistant</title>
+  <meta name="description" content="AI-powered machine manual diagnosis. Upload PDF manuals and get structured diagnostic responses with issue identification, solutions, and safety warnings." />
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/animations.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/chat.css?v=2" />
+
+  <!-- Inline upload dropzone styles (small, co-located) -->
+  <style>
+    .upload-dropzone {
+      border: 2px dashed var(--surface-glass-border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-16) var(--space-8);
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition-base);
+      background: var(--surface-glass);
+      backdrop-filter: blur(var(--surface-glass-blur));
+    }
+    .upload-dropzone:hover,
+    .upload-dropzone.dragover {
+      border-color: var(--accent-primary);
+      background: var(--accent-primary-bg);
+      box-shadow: inset 0 0 40px var(--accent-primary-glow);
+    }
+    .upload-dropzone.dragover {
+      animation: borderPulse 1.5s ease-in-out infinite;
+    }
+    .upload-dropzone-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-3);
+    }
+    .upload-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: var(--radius-xl);
+      background: var(--accent-primary-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-primary);
+      margin-bottom: var(--space-2);
+    }
+    .upload-title {
+      font-size: var(--text-xl);
+      font-weight: var(--weight-semibold);
+    }
+    .upload-subtitle {
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+    }
+    .upload-hint {
+      color: var(--text-tertiary);
+      font-size: var(--text-xs);
+      margin-top: var(--space-2);
+    }
+  </style>
+
+  <!-- Favicon (inline SVG as data URI) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- APP LAYOUT                                                         -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="app-layout" id="app-layout">
+
+    <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+          </svg>
+        </div>
+        <div class="sidebar-brand">
+          <h1>ManualRAG</h1>
+          <p>Diagnostic Assistant</p>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Main</div>
+
+        <button class="nav-item active" data-view="chat" id="nav-chat">
+          <span class="nav-item-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>
+            </svg>
+          </span>
+          <span class="nav-item-label">Chat</span>
+        </button>
+
+        <button class="nav-item" data-view="manuals" id="nav-manuals">
+          <span class="nav-item-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+            </svg>
+          </span>
+          <span class="nav-item-label">Manuals</span>
+        </button>
+
+        <button class="nav-item" data-view="upload" id="nav-upload">
+          <span class="nav-item-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </span>
+          <span class="nav-item-label">Upload</span>
+        </button>
+
+        <div class="nav-section-label">System</div>
+
+        <button class="nav-item" data-view="health" id="nav-health">
+          <span class="nav-item-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+            </svg>
+          </span>
+          <span class="nav-item-label">Health</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-status" id="sidebar-status-bar">
+          <span class="status-dot unknown" id="sidebar-status-dot"></span>
+          <span class="status-label" id="sidebar-status-label">Connecting...</span>
+        </div>
+        <button class="sidebar-toggle" id="sidebar-toggle-btn" title="Toggle sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── Main Content ────────────────────────────────────────────────── -->
+    <main class="main-content">
+      <div class="view-container">
+
+        <!-- ── Chat View ───────────────────────────────────────────────── -->
+        <div class="view-panel chat-view active" id="view-chat">
+
+          <!-- Step 1: PDF Selection Screen -->
+          <div class="chat-welcome chat-pdf-select-step" id="chat-pdf-select">
+            <div class="chat-welcome-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </div>
+            <h2>Select a Manual</h2>
+            <p>Choose which PDF manual you'd like to query. All questions will be scoped to the selected manual.</p>
+            <div class="pdf-select-container" id="pdf-select-container">
+              <div class="pdf-select-loading">
+                <div class="spinner"></div>
+                <span>Loading manuals…</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Welcome / Suggestions (hidden until PDF is selected) -->
+          <div class="chat-welcome" id="chat-welcome" style="display: none;">
+            <div class="chat-welcome-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+              </svg>
+            </div>
+            <h2>Machine Manual Diagnostics</h2>
+            <p>Describe a machine problem and I'll search your indexed manuals for structured diagnostic insights — including possible issues, solutions, and safety warnings.</p>
+
+            <!-- Active manual indicator + change button -->
+            <div class="active-manual-badge" id="active-manual-badge"></div>
+
+            <div class="chat-suggestions">
+              <button class="chat-suggestion">The motor is overheating and making a grinding noise</button>
+              <button class="chat-suggestion">Hydraulic pressure dropping during operation</button>
+              <button class="chat-suggestion">Error code E-42 on the display panel</button>
+              <button class="chat-suggestion">Conveyor belt alignment procedure</button>
+            </div>
+          </div>
+
+          <!-- Messages Area (initially hidden) -->
+          <div class="chat-messages" id="chat-messages" style="display: none;">
+            <div class="chat-messages-inner" id="chat-messages-inner"></div>
+          </div>
+
+          <!-- Input Bar -->
+          <div class="chat-input-bar">
+            <div class="chat-input-container">
+              <div class="chat-input-controls">
+                <!-- Hidden: manual filter is now set from the PDF select step -->
+                <select class="select" id="chat-manual-filter" title="Filter by manual" style="display: none;">
+                  <option value="">All Manuals</option>
+                </select>
+                <!-- Active manual chip in input bar -->
+                <div class="chat-input-manual-chip" id="chat-input-manual-chip"></div>
+                <div class="range-group">
+                  <span style="font-size: var(--text-xs); color: var(--text-tertiary);">Top-K</span>
+                  <input type="range" class="range" id="chat-topk" min="1" max="20" value="5" />
+                  <span class="range-value" id="chat-topk-value">5</span>
+                </div>
+              </div>
+              <div class="chat-input-wrapper">
+                <textarea
+                  id="chat-textarea"
+                  placeholder="Describe the machine problem..."
+                  rows="1"
+                ></textarea>
+                <button class="chat-send-btn" id="chat-send-btn" disabled title="Send message">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m22 2-7 20-4-9-9-4Z"/>
+                    <path d="M22 2 11 13"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Manuals View ────────────────────────────────────────────── -->
+        <div class="view-panel" id="view-manuals">
+          <div class="view-header">
+            <h2>Indexed Manuals</h2>
+            <p>View and manage all PDF manuals that have been ingested into the RAG pipeline.</p>
+          </div>
+          <div id="manuals-content"></div>
+        </div>
+
+        <!-- ── Upload View ─────────────────────────────────────────────── -->
+        <div class="view-panel" id="view-upload">
+          <div class="view-header">
+            <h2>Upload Manual</h2>
+            <p>Upload a PDF machine manual. Text, diagrams, and images will be extracted and indexed for diagnostic queries.</p>
+          </div>
+          <div id="upload-content"></div>
+        </div>
+
+        <!-- ── Health View ─────────────────────────────────────────────── -->
+        <div class="view-panel" id="view-health">
+          <div class="view-header">
+            <h2>System Health</h2>
+            <p>Monitor the status of all pipeline components — Ollama, embedding model, reranker, and vector store.</p>
+          </div>
+          <div id="health-content"></div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- ── Source Panel (right slide-in) ────────────────────────────────── -->
+    <aside class="source-panel">
+      <div class="source-panel-header">
+        <h2>Source Reference</h2>
+        <button class="source-panel-close" id="source-panel-close-btn" title="Close panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="source-panel-body" id="source-panel-body">
+        <div class="empty-state" style="padding: var(--space-8);">
+          <p class="empty-state-description">Click on a source chip in a response to view details.</p>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- DELETE CONFIRMATION MODAL                                          -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay hidden" id="delete-modal">
+    <div class="modal">
+      <div class="modal-title">Delete Manual</div>
+      <div class="modal-body">
+        Are you sure you want to delete <strong id="delete-modal-filename"></strong>?
+        This will remove all indexed data and cannot be undone.
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="delete-modal-cancel">Cancel</button>
+        <button class="btn btn-danger" id="delete-modal-confirm">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- TOAST CONTAINER                                                    -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- SCRIPTS (order matters: utils → api → modules → app)              -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <script src="js/utils.js?v=3"></script>
+  <script src="js/api.js?v=3"></script>
+  <script src="js/health.js?v=3"></script>
+  <script src="js/manuals.js?v=3"></script>
+  <script src="js/ingest.js?v=3"></script>
+  <script src="js/chat.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
+
+</body>
+</html>
