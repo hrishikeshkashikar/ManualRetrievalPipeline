@@ -52,6 +52,7 @@ class AppState:
     reranker: Reranker = field(default_factory=Reranker)
     generator: Generator = field(default_factory=Generator)
     rag_pipeline: RAGPipeline | None = None
+    current_mount_path: str | None = None
 
 
 # Module-level state — populated during lifespan startup
@@ -67,10 +68,10 @@ async def lifespan(app: FastAPI):
     Application lifespan manager.
 
     Startup:
-    - Ensure data directories exist
+    - Ensure data directories exist (if default exists)
     - Load embedding model
     - Load reranker model
-    - Initialize vector store
+    - Initialize vector store (if default exists)
     - Create RAG pipeline
 
     Shutdown:
@@ -82,9 +83,19 @@ async def lifespan(app: FastAPI):
     logger.info("  Machine Manual RAG Pipeline — Starting Up")
     logger.info("=" * 60)
 
-    # Ensure directories
-    settings.ensure_directories()
-    logger.info("Data directories ready")
+    # Check if default data directory exists
+    default_dir = settings.data_dir
+    if default_dir.exists():
+        try:
+            settings.ensure_directories()
+            logger.info(f"Auto-initializing default data path: {default_dir.resolve()}")
+            app_state.vector_store.initialize()
+            app_state.current_mount_path = str(default_dir.resolve())
+            logger.info("Default vector store ready")
+        except Exception as e:
+            logger.warning(f"Failed to auto-initialize default data path: {e}")
+    else:
+        logger.info("No default data directory found on host. App starting in UNMOUNTED state.")
 
     # Load embedding model
     logger.info("Loading embedding model...")
@@ -94,11 +105,7 @@ async def lifespan(app: FastAPI):
     logger.info("Loading reranker model...")
     app_state.reranker.load()
 
-    # Initialize vector store
-    logger.info("Initializing vector store...")
-    app_state.vector_store.initialize()
-
-    # Create RAG pipeline
+    # Create RAG pipeline (vector_store will read settings.chroma_persist_dir dynamically)
     app_state.rag_pipeline = RAGPipeline(
         embedder=app_state.embedder,
         vector_store=app_state.vector_store,
@@ -162,22 +169,43 @@ app.include_router(health_router)
 app.include_router(ingest_router)
 app.include_router(query_router)
 
-# ── Static Files (serve page images for the frontend) ───────────────────────
+# ── Dynamic Image Serving (serve page images from the mounted directory) ──
 
-if settings.image_store_dir.exists():
+from fastapi.responses import FileResponse
+from fastapi import HTTPException
+
+@app.get("/data/images/{image_path:path}")
+async def get_image(image_path: str):
+    """Serve images dynamically from the currently mounted image store directory."""
+    if not app_state.current_mount_path:
+        raise HTTPException(status_code=400, detail="No data path is currently mounted.")
+        
+    full_path = settings.image_store_dir / image_path
+    
+    # Secure path checks (directory traversal guard)
+    try:
+        resolved = full_path.resolve()
+        base_resolved = settings.image_store_dir.resolve()
+        if not str(resolved).startswith(str(base_resolved)):
+            raise HTTPException(status_code=403, detail="Access denied")
+    except Exception:
+        raise HTTPException(status_code=404, detail="Image not found")
+        
+    if not resolved.exists() or not resolved.is_file():
+        raise HTTPException(status_code=404, detail="Image not found")
+        
+    return FileResponse(resolved)
+
+
+# ── Static Files (serve UI frontend directly from root) ─────────────────────
+
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+frontend_dir = Path(__file__).parent.parent / "frontend"
+if frontend_dir.exists():
     app.mount(
-        "/data/images",
-        StaticFiles(directory=str(settings.image_store_dir)),
-        name="images",
+        "/",
+        StaticFiles(directory=str(frontend_dir), html=True),
+        name="frontend",
     )
-
-
-@app.get("/", include_in_schema=False)
-async def root():
-    """Root endpoint — redirect to docs."""
-    return {
-        "service": "Machine Manual RAG Pipeline",
-        "version": "1.0.0",
-        "docs": "/docs",
-        "health": "/health",
-    }

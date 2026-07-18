@@ -6,7 +6,8 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama_data:/root/.ollama
+      # Store Ollama models on the host data directory (which maps to the USB drive for edge devices)
+      - ./data/models/ollama:/root/.ollama
     restart: unless-stopped
     # Uncomment below for GPU support (NVIDIA)
     # deploy:
@@ -24,19 +25,20 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      # Mount the default local data dir
       - ./data:/app/data
-      # Mount HuggingFace cache for pre-downloaded models
-      - ${HF_HOME:-~/.cache/huggingface}:/root/.cache/huggingface
+      # Mount host folders to allow container access to external USB/pendrives dynamically
+      - /media:/media
+      - /Volumes:/Volumes
+      - /mnt:/mnt
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-llama3.2-vision:11b}
       - CHROMA_PERSIST_DIR=/app/data/chroma_db
       - IMAGE_STORE_DIR=/app/data/images
       - MANUAL_STORE_DIR=/app/data/manuals
+      - HF_HOME=/app/data/models/huggingface  # Store offline models on the USB drive for plug-and-play
       - HF_HUB_OFFLINE=1  # Force offline mode for HuggingFace
     depends_on:
       - ollama
     restart: unless-stopped
-
-volumes:
-  ollama_data:

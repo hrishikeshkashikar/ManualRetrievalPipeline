@@ -51,6 +51,13 @@ async def ingest_manual(
     """
     from app.main import app_state
 
+    # Validate that we have a mounted data path
+    if not app_state.current_mount_path:
+        raise HTTPException(
+            status_code=400,
+            detail="UNMOUNTED"
+        )
+
     start_time = time.time()
 
     # ── Validate file ──────────────────────────────────────────────────
@@ -194,6 +201,13 @@ async def list_manuals() -> ManualListResponse:
     """List all currently indexed manuals with their stats."""
     from app.main import app_state
 
+    # Validate that we have a mounted data path
+    if not app_state.current_mount_path:
+        raise HTTPException(
+            status_code=400,
+            detail="UNMOUNTED"
+        )
+
     manuals_data = app_state.vector_store.list_manuals()
 
     manuals = [
@@ -222,6 +236,13 @@ async def list_manuals() -> ManualListResponse:
 async def delete_manual(manual_id: str) -> DeleteManualResponse:
     """Delete a manual and all its associated data from the index."""
     from app.main import app_state
+
+    # Validate that we have a mounted data path
+    if not app_state.current_mount_path:
+        raise HTTPException(
+            status_code=400,
+            detail="UNMOUNTED"
+        )
 
     # Check if manual exists
     manuals = app_state.vector_store.list_manuals()

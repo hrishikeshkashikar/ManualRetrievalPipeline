@@ -61,6 +61,14 @@ class Settings(BaseSettings):
         self.image_store_dir.mkdir(parents=True, exist_ok=True)
         self.manual_store_dir.mkdir(parents=True, exist_ok=True)
 
+    def update_paths(self, base_path: Path) -> None:
+        """Update all dependent storage paths based on a new base path."""
+        self.data_dir = base_path
+        self.chroma_persist_dir = base_path / "chroma_db"
+        self.image_store_dir = base_path / "images"
+        self.manual_store_dir = base_path / "manuals"
+        self.ensure_directories()
+
 
 # Singleton settings instance
 settings = Settings()

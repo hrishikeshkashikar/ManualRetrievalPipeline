@@ -39,6 +39,13 @@ async def query_rag(request: QueryRequest) -> QueryResponse:
     """
     from app.main import app_state
 
+    # Validate that we have a mounted data path
+    if not app_state.current_mount_path:
+        raise HTTPException(
+            status_code=400,
+            detail="UNMOUNTED"
+        )
+
     # Validate that we have indexed manuals
     total_chunks = app_state.vector_store.get_total_chunks()
     if total_chunks == 0:
@@ -83,6 +90,13 @@ async def query_rag_stream(request: QueryRequest):
     as the VLM generates them.
     """
     from app.main import app_state
+
+    # Validate that we have a mounted data path
+    if not app_state.current_mount_path:
+        raise HTTPException(
+            status_code=400,
+            detail="UNMOUNTED"
+        )
 
     total_chunks = app_state.vector_store.get_total_chunks()
     if total_chunks == 0:

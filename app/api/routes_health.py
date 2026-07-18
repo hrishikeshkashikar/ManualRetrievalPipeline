@@ -4,13 +4,72 @@ Health check API routes.
 
 import logging
 
-from fastapi import APIRouter, Depends
+from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException
 
-from app.models.schemas import HealthResponse
+from app.models.schemas import HealthResponse, MountRequest, MountResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Health"])
+
+
+@router.get(
+    "/config/mount",
+    response_model=MountResponse,
+    summary="Get current data mount configuration",
+    description="Check if a data directory is currently mounted and retrieve its path.",
+)
+async def get_mount_config() -> MountResponse:
+    """Get the currently active mounted data path status."""
+    from app.main import app_state
+    if app_state.current_mount_path:
+        return MountResponse(status="mounted", path=app_state.current_mount_path)
+    return MountResponse(status="unmounted", path=None)
+
+
+@router.post(
+    "/config/mount",
+    response_model=MountResponse,
+    summary="Dynamically mount a data directory",
+    description="Set the absolute path of the data directory and initialize system components.",
+)
+async def mount_data_directory(request: MountRequest) -> MountResponse:
+    """Mount a new data directory and re-initialize storage paths and ChromaDB."""
+    from app.main import app_state
+    from app.config import settings
+
+    path_str = request.path.strip()
+    if not path_str:
+        raise HTTPException(status_code=400, detail="Path cannot be empty")
+
+    path = Path(path_str)
+
+    try:
+        # Create directories on target path if they don't exist
+        path.mkdir(parents=True, exist_ok=True)
+        
+        # Update settings paths
+        settings.update_paths(path)
+        
+        # Re-initialize vector store with the new Chroma DB folder
+        app_state.vector_store.initialize(str(settings.chroma_persist_dir))
+        
+        # Update app mount state
+        app_state.current_mount_path = str(path.resolve())
+        
+        logger.info(f"Dynamic mount success: {app_state.current_mount_path}")
+        return MountResponse(
+            status="mounted",
+            path=app_state.current_mount_path,
+            message="Data directory mounted and vector store initialized successfully."
+        )
+    except Exception as e:
+        logger.error(f"Failed to mount directory {path_str}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to mount and initialize directory: {e}"
+        )
 
 
 @router.get(

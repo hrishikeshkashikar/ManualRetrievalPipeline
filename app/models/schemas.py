@@ -116,6 +116,23 @@ class QueryResponse(BaseModel):
     processing_time_seconds: float = Field(..., description="Total processing time")
 
 
+# ── Config / Mount Schemas ──────────────────────────────────────────────────
+
+
+class MountRequest(BaseModel):
+    """Request schema to dynamically mount a data path."""
+
+    path: str = Field(..., description="Absolute path on the host/container to mount as data dir")
+
+
+class MountResponse(BaseModel):
+    """Response schema for the mount config status."""
+
+    status: str = Field(..., description="mounted | unmounted")
+    path: str | None = Field(default=None, description="The currently mounted base directory")
+    message: str = Field(default="")
+
+
 # ── Health Schemas ──────────────────────────────────────────────────────────
 
 

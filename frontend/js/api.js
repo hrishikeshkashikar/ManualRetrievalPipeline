@@ -4,11 +4,13 @@
  * Configurable BASE_URL, error handling, and streaming support.
  */
 
-const API_BASE_URL = 'http://localhost:8000';
-
 class ApiClient {
-  constructor(baseUrl = API_BASE_URL) {
-    this.baseUrl = baseUrl.replace(/\/+$/, '');
+  constructor() {
+    // If loaded over HTTP/S (e.g. from Docker/Server), use the current host/port origin.
+    // Fall back to http://localhost:8000 if opened directly from local disk (file:// protocol).
+    const isLocalFile = window.location.protocol === 'file:';
+    const serverUrl = 'http://localhost:8000';
+    this.baseUrl = (isLocalFile ? serverUrl : window.location.origin).replace(/\/+$/, '');
   }
 
   // ── Internal helpers ──────────────────────────────────────────────
@@ -39,6 +41,9 @@ class ApiClient {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const message = errorData.detail || `HTTP ${response.status}: ${response.statusText}`;
+        if (message === 'UNMOUNTED') {
+          document.dispatchEvent(new CustomEvent('unmounted-state'));
+        }
         throw new ApiError(message, response.status);
       }
 
@@ -78,6 +83,16 @@ class ApiClient {
     return this._request('DELETE', `/ingest/manuals/${encodeURIComponent(manualId)}`);
   }
 
+  // ── Config / Dynamic Mount ─────────────────────────────────────────
+
+  async getMountConfig() {
+    return this._request('GET', '/config/mount');
+  }
+
+  async mountDataDirectory(path) {
+    return this._request('POST', '/config/mount', { body: { path } });
+  }
+
   // ── Query ─────────────────────────────────────────────────────────
 
   async query(request) {
@@ -114,6 +129,9 @@ class ApiClient {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const message = errorData.detail || `HTTP ${response.status}`;
+        if (message === 'UNMOUNTED') {
+          document.dispatchEvent(new CustomEvent('unmounted-state'));
+        }
         throw new ApiError(message, response.status);
       }
 

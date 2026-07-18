@@ -27,13 +27,13 @@ class VectorStore:
     """
 
     def __init__(self) -> None:
-        self.persist_dir = str(settings.chroma_persist_dir)
         self._client: chromadb.PersistentClient | None = None
 
-    def initialize(self) -> None:
+    def initialize(self, path: str | None = None) -> None:
         """Initialize the ChromaDB persistent client."""
-        logger.info(f"Initializing ChromaDB at {self.persist_dir}")
-        self._client = chromadb.PersistentClient(path=self.persist_dir)
+        persist_path = path or str(settings.chroma_persist_dir)
+        logger.info(f"Initializing ChromaDB at {persist_path}")
+        self._client = chromadb.PersistentClient(path=persist_path)
         # Ensure the unified collection exists
         self._get_or_create_unified_collection()
         logger.info("ChromaDB initialized successfully")
