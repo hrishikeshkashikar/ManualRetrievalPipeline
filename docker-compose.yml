@@ -1,15 +1,73 @@
 services:
-  # ── Ollama (Local LLM Runtime) ──────────────────────────────────────
-  ollama:
-    image: ollama/ollama:latest
-    container_name: manual-rag-ollama
+  # ══════════════════════════════════════════════════════════════════════
+  #  Manual RAG — Single self-contained service
+  #
+  #  This image has ALL models baked in — no downloads needed.
+  #  Just mount your data/ folder and run: docker compose up -d
+  #
+  #  KNOWLEDGE BASE SWITCHING (from the UI):
+  #  ─────────────────────────────────────────────────────────────────────
+  #  The sidebar has a "Change Data Path" button that lets you switch
+  #  between knowledge bases at runtime (no container restart needed).
+  #
+  #  To add knowledge bases:
+  #    1. Add volume mounts below under "# ── Extra knowledge bases"
+  #    2. Restart the container (docker compose up -d)
+  #    3. In the UI, click "Change Data Path" and enter the container path
+  #       (e.g. /kb/project-alpha)
+  #
+  #  The data folder structure must remain:
+  #    <path>/
+  #      ├── chroma_db/    ← ChromaDB vector store
+  #      ├── images/       ← Rendered page images
+  #      └── manuals/      ← Original PDF files
+  # ══════════════════════════════════════════════════════════════════════
+  manual-rag:
+    image: manual-rag:latest      # Pre-built self-contained image
+    container_name: manual-rag-app
     ports:
-      - "11434:11434"
+      - "8000:8000"               # RAG API + Web UI
+      - "11434:11434"             # Ollama (optional, for external access)
     volumes:
-      # Store Ollama models on the host data directory (which maps to the USB drive for edge devices)
-      - ./data/models/ollama:/root/.ollama
+      # ── Default knowledge base (auto-loaded on startup) ───────────────
+      - ./data:/app/data
+
+      # ── Host filesystem access (allows UI to resolve host paths dynamically) ──
+      # Mounts host directories so the container can access any host path at runtime
+      - /Users:/host/Users          # macOS host home directories
+      - /Volumes:/host/Volumes      # macOS external drives
+
+
+
+    environment:
+      # ── Ollama (internal — do NOT change unless you know what you're doing)
+      - OLLAMA_BASE_URL=http://127.0.0.1:11434
+      - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-qwen2.5vl:3b}
+
+      # ── HuggingFace offline mode (models are baked into the image)
+      - HF_HOME=/opt/hf_models
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
+
+      # ── Default data paths (used on first startup before UI path is set)
+      - DATA_DIR=/app/data
+      - CHROMA_PERSIST_DIR=/app/data/chroma_db
+      - IMAGE_STORE_DIR=/app/data/images
+      - MANUAL_STORE_DIR=/app/data/manuals
+
+      # ── Retrieval parameters (optional overrides)
+      # - TOP_K_RETRIEVAL=15
+      # - TOP_K_RERANK=5
+      # - CHUNK_SIZE=512
+      # - CHUNK_OVERLAP=64
+
     restart: unless-stopped
-    # Uncomment below for GPU support (NVIDIA)
+    # ── Resource limits (optional, uncomment to cap usage) ───────────────
+    # mem_limit: 16g
+    # cpus: '4.0'
+
+    # ── NVIDIA GPU support (uncomment + install NVIDIA Container Toolkit) ─
+    # See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
     # deploy:
     #   resources:
     #     reservations:
@@ -18,27 +76,9 @@ services:
     #           count: 1
     #           capabilities: [gpu]
 
-  # ── RAG API Service ─────────────────────────────────────────────────
-  rag-api:
-    build: .
-    container_name: manual-rag-api
-    ports:
-      - "8000:8000"
-    volumes:
-      # Mount the default local data dir
-      - ./data:/app/data
-      # Mount host folders to allow container access to external USB/pendrives dynamically
-      - /media:/media
-      - /Volumes:/Volumes
-      - /mnt:/mnt
-    environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-llama3.2-vision:11b}
-      - CHROMA_PERSIST_DIR=/app/data/chroma_db
-      - IMAGE_STORE_DIR=/app/data/images
-      - MANUAL_STORE_DIR=/app/data/manuals
-      - HF_HOME=/app/data/models/huggingface  # Store offline models on the USB drive for plug-and-play
-      - HF_HUB_OFFLINE=1  # Force offline mode for HuggingFace
-    depends_on:
-      - ollama
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s

@@ -1,0 +1,78 @@
+services:
+  # ══════════════════════════════════════════════════════════════════════
+  #  docker-compose.split.yml — Two-service split for power users
+  #
+  #  Use this if you want to:
+  #   • Run multiple rag-api replicas against one shared Ollama instance
+  #   • Use a host-installed Ollama instead of a containerized one
+  #   • Scale API and inference independently
+  #
+  #  Usage:
+  #    docker compose -f docker-compose.split.yml up -d
+  #
+  #  NOTE: This compose does NOT bake models into the rag-api container.
+  #  Models are stored on the host under ./data/models/ollama (Ollama)
+  #  and ./data/models/huggingface (HuggingFace), mapped in as volumes.
+  # ══════════════════════════════════════════════════════════════════════
+
+  # ── Ollama (Dedicated LLM/VLM Service) ──────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: manual-rag-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      # Ollama model store — persisted on host for reuse across restarts
+      - ./data/models/ollama:/root/.ollama
+    restart: unless-stopped
+    # ── NVIDIA GPU (uncomment to enable) ────────────────────────────────
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── RAG API Service ───────────────────────────────────────────────────
+  rag-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: manual-rag-api
+    ports:
+      - "8000:8000"
+    volumes:
+      # ── Default knowledge base ─────────────────────────────────────
+      - ./data:/app/data
+      # ── HuggingFace model store (persisted on host) ─────────────────
+      - ./data/models/huggingface:/opt/hf_models
+      # ── Extra knowledge bases (uncomment / add your own) ────────────
+      # - /path/to/project-alpha/data:/kb/project-alpha
+      # - /path/to/project-beta/data:/kb/project-beta
+      # - /Volumes/USB_DRIVE/data:/kb/usb
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-qwen2.5vl:3b}
+      - HF_HOME=/opt/hf_models
+      - HF_HUB_OFFLINE=0                    # Allow download on first run
+      - DATA_DIR=/app/data
+      - CHROMA_PERSIST_DIR=/app/data/chroma_db
+      - IMAGE_STORE_DIR=/app/data/images
+      - MANUAL_STORE_DIR=/app/data/manuals
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s

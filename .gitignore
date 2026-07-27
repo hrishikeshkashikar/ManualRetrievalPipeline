@@ -37,3 +37,14 @@ htmlcov/
 .coverage
 
 data/
+
+# ── Docker ────────────────────────────────────────────────────────────────
+# Exported image tarballs (large, machine-specific)
+*.tar.gz
+*.tar
+
+# Machine-specific Docker env (has internal container paths)
+docker.env
+
+# Supervisor runtime logs (generated inside container)
+/var/log/supervisor/

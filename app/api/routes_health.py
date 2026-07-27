@@ -43,7 +43,36 @@ async def mount_data_directory(request: MountRequest) -> MountResponse:
     if not path_str:
         raise HTTPException(status_code=400, detail="Path cannot be empty")
 
+    import os
+    is_docker = os.path.exists("/.dockerenv") or os.environ.get("HF_HUB_OFFLINE") == "1"
+
     path = Path(path_str)
+
+    if is_docker and not path.exists():
+        # Try to resolve it via /host mount translation (e.g. /Users/... -> /host/Users/...)
+        host_prefixes = ("/Users", "/Volumes", "/home", "/media", "/mnt")
+        if path_str.startswith(host_prefixes):
+            host_translated = Path("/host") / path_str.lstrip("/")
+            if host_translated.exists():
+                path = host_translated
+                logger.info(f"Host path translated inside container: {path_str} -> {path}")
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Host path '{path_str}' was mapped to '{host_translated}' inside the container, "
+                        "but this directory does not exist. Please check if the directory exists on your host machine."
+                    )
+                )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Path '{path_str}' does not exist inside the container. "
+                    "Docker containers cannot access host paths directly. "
+                    "To use a host path, it must be located within one of: /Users, /Volumes, /home, /media, /mnt."
+                )
+            )
 
     try:
         # Create directories on target path if they don't exist
@@ -56,9 +85,9 @@ async def mount_data_directory(request: MountRequest) -> MountResponse:
         app_state.vector_store.initialize(str(settings.chroma_persist_dir))
         
         # Update app mount state
-        app_state.current_mount_path = str(path.resolve())
+        app_state.current_mount_path = path_str
         
-        logger.info(f"Dynamic mount success: {app_state.current_mount_path}")
+        logger.info(f"Dynamic mount success: {app_state.current_mount_path} (mapped to internal path: {path})")
         return MountResponse(
             status="mounted",
             path=app_state.current_mount_path,
