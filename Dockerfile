@@ -25,7 +25,8 @@ FROM ollama/ollama:latest AS model-downloader
 
 ARG VISION_MODEL
 
-# Start Ollama, pull the vision model, then export binary/libs/blobs for runtime
+# Start Ollama, pull the vision model, then export binary/libs/blobs for runtime.
+# Strip NVIDIA/CUDA/ROCm runners — not needed on Mac/CPU and they blow up image size.
 RUN ollama serve & \
     OLLAMA_PID=$! && \
     echo "Waiting for Ollama to start..." && \
@@ -37,9 +38,17 @@ RUN ollama serve & \
     wait $OLLAMA_PID 2>/dev/null || true && \
     mkdir -p /export/usr/bin /export/usr/lib && \
     cp /usr/bin/ollama /export/usr/bin/ollama && \
-    if [ -d /usr/lib/ollama ]; then cp -a /usr/lib/ollama /export/usr/lib/; \
-    else mkdir -p /export/usr/lib/ollama; fi && \
-    cp -a /root/.ollama /export/ollama-home
+    if [ -d /usr/lib/ollama ]; then \
+      cp -a /usr/lib/ollama /export/usr/lib/ && \
+      rm -rf /export/usr/lib/ollama/cuda* \
+             /export/usr/lib/ollama/rocm* \
+             /export/usr/lib/ollama/vulkan* \
+             /export/usr/lib/ollama/*cuda* 2>/dev/null || true; \
+    else \
+      mkdir -p /export/usr/lib/ollama; \
+    fi && \
+    cp -a /root/.ollama /export/ollama-home && \
+    echo "Exported ollama lib size:" && du -sh /export/usr/lib/ollama /export/ollama-home
 
 # ══════════════════════════════════════════════════════════════════════════
 # STAGE 2 — Download HuggingFace models
