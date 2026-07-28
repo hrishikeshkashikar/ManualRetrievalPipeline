@@ -13,6 +13,7 @@ from app.core.generator import Generator
 from app.core.reranker import Reranker
 from app.core.vector_store import VectorStore
 from app.models.schemas import QueryResponse, SourceReference
+from app.utils.path_utils import to_web_image_path
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +119,7 @@ class RAGPipeline:
                 content_type=rc.chunk.content_type,
                 relevance_score=round(rc.rerank_score or 0.0, 4),
                 snippet=rc.chunk.content[:200],
-                page_image_path=rc.chunk.page_image_path,
+                page_image_path=to_web_image_path(rc.chunk.page_image_path),
             )
             for rc in reranked
         ]
@@ -198,7 +199,7 @@ class RAGPipeline:
                 "content_type": rc.chunk.content_type,
                 "relevance_score": round(1.0 - rc.distance, 4),  # cosine distance → similarity
                 "snippet": rc.chunk.content[:200],
-                "page_image_path": rc.chunk.page_image_path,
+                "page_image_path": to_web_image_path(rc.chunk.page_image_path),
             }
             for rc in candidates
         ]

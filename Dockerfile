@@ -25,17 +25,21 @@ FROM ollama/ollama:latest AS model-downloader
 
 ARG VISION_MODEL
 
-# Start Ollama server in background, pull the model, then shut it down cleanly.
-# The model blobs are persisted in /root/.ollama/models/
+# Start Ollama, pull the vision model, then export binary/libs/blobs for runtime
 RUN ollama serve & \
     OLLAMA_PID=$! && \
     echo "Waiting for Ollama to start..." && \
-    sleep 5 && \
+    sleep 8 && \
     echo "Pulling vision model: ${VISION_MODEL}" && \
-    ollama pull ${VISION_MODEL} && \
+    ollama pull "${VISION_MODEL}" && \
     echo "Model pull complete. Shutting down Ollama..." && \
     kill $OLLAMA_PID && \
-    wait $OLLAMA_PID 2>/dev/null || true
+    wait $OLLAMA_PID 2>/dev/null || true && \
+    mkdir -p /export/usr/bin /export/usr/lib && \
+    cp /usr/bin/ollama /export/usr/bin/ollama && \
+    if [ -d /usr/lib/ollama ]; then cp -a /usr/lib/ollama /export/usr/lib/; \
+    else mkdir -p /export/usr/lib/ollama; fi && \
+    cp -a /root/.ollama /export/ollama-home
 
 # ══════════════════════════════════════════════════════════════════════════
 # STAGE 2 — Download HuggingFace models
@@ -109,16 +113,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zstd \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Install Ollama binary & libraries ────────────────────────────────────
-# Copy the binary and runners directly from the official ollama/ollama image.
-# Ollama needs the runners/libraries in /usr/lib/ollama (like llama-server) to function.
-COPY --from=model-downloader /usr/bin/ollama /usr/bin/ollama
-COPY --from=model-downloader /usr/lib/ollama /usr/lib/ollama
-
-
+# ── Install Ollama binary & libraries (exported from stage 1) ─────────────
+COPY --from=model-downloader /export/usr/bin/ollama /usr/bin/ollama
+COPY --from=model-downloader /export/usr/lib/ollama /usr/lib/ollama
 
 # ── Copy baked-in Ollama model blobs ─────────────────────────────────────
-COPY --from=model-downloader /root/.ollama /root/.ollama
+COPY --from=model-downloader /export/ollama-home /root/.ollama
 
 # ── Copy baked-in HuggingFace models ─────────────────────────────────────
 COPY --from=hf-downloader /opt/hf_models /opt/hf_models
@@ -154,6 +154,7 @@ LABEL org.opencontainers.image.title="Manual RAG Pipeline" \
 ENV HF_HOME=/opt/hf_models \
     HF_HUB_OFFLINE=1 \
     TRANSFORMERS_OFFLINE=1 \
+    MANUAL_RAG_IN_DOCKER=1 \
     OLLAMA_MODELS=/root/.ollama/models \
     OLLAMA_BASE_URL=http://127.0.0.1:11434 \
     OLLAMA_VISION_MODEL=${VISION_MODEL} \

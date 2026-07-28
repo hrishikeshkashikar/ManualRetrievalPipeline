@@ -1,0 +1,43 @@
+# Lightweight API image for local Docker testing (models NOT baked in).
+# Uses host Ollama via host.docker.internal and a mounted HF cache.
+#
+# Tip: first build still downloads torch (~hundreds of MB). Rebuilds are
+# fast thanks to the pip cache mount. For the quickest local loop, prefer:
+#   uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.docker.txt .
+
+# BuildKit cache keeps pip wheels between builds (DOCKER_BUILDKIT=1)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.docker.txt
+
+COPY app/ ./app/
+COPY frontend/ ./frontend/
+
+RUN mkdir -p /app/data/chroma_db /app/data/images /app/data/manuals
+
+ENV MANUAL_RAG_IN_DOCKER=1 \
+    DATA_DIR=/app/data \
+    CHROMA_PERSIST_DIR=/app/data/chroma_db \
+    IMAGE_STORE_DIR=/app/data/images \
+    MANUAL_STORE_DIR=/app/data/manuals \
+    OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+    OLLAMA_VISION_MODEL=qwen2.5vl:3b \
+    HOST=0.0.0.0 \
+    PORT=8000
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8000/health || exit 1
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

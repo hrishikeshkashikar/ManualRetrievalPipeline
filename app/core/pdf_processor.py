@@ -21,6 +21,7 @@ from PIL import Image
 from app.config import settings
 from app.models.schemas import DocumentChunk
 from app.utils.image_utils import save_image
+from app.utils.path_utils import to_relative_image_path
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,11 @@ class PDFProcessor:
         self.chunk_size = settings.chunk_size
         self.chunk_overlap = settings.chunk_overlap
         self.render_dpi = settings.page_render_dpi
-        self.image_store_dir = settings.image_store_dir
+
+    @property
+    def image_store_dir(self) -> Path:
+        """Always read from live settings so UI remounts take effect."""
+        return settings.image_store_dir
 
     def generate_manual_id(self, filepath: Path) -> str:
         """Generate a deterministic manual ID from the file content hash."""
@@ -81,7 +86,10 @@ class PDFProcessor:
 
                 for chunk_idx, chunk_text in enumerate(chunks):
                     chunk_id = f"{manual_id}_p{page_num}_c{chunk_idx}"
-                    page_image_path = str(manual_image_dir / f"page_{page_num}.png")
+                    page_image_path = to_relative_image_path(
+                        manual_image_dir / f"page_{page_num}.png",
+                        manual_id=manual_id,
+                    )
                     all_chunks.append(
                         DocumentChunk(
                             chunk_id=chunk_id,

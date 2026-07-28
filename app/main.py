@@ -52,7 +52,8 @@ class AppState:
     reranker: Reranker = field(default_factory=Reranker)
     generator: Generator = field(default_factory=Generator)
     rag_pipeline: RAGPipeline | None = None
-    current_mount_path: str | None = None
+    current_mount_path: str | None = None  # user-facing path shown in UI
+    resolved_mount_path: str | None = None  # actual path used for I/O
 
 
 # Module-level state — populated during lifespan startup
@@ -83,19 +84,19 @@ async def lifespan(app: FastAPI):
     logger.info("  Machine Manual RAG Pipeline — Starting Up")
     logger.info("=" * 60)
 
-    # Check if default data directory exists
+    # Auto-mount default DATA_DIR when present (Docker: /app/data volume)
     default_dir = settings.data_dir
-    if default_dir.exists():
-        try:
-            settings.ensure_directories()
-            logger.info(f"Auto-initializing default data path: {default_dir.resolve()}")
-            app_state.vector_store.initialize()
-            app_state.current_mount_path = str(default_dir.resolve())
-            logger.info("Default vector store ready")
-        except Exception as e:
-            logger.warning(f"Failed to auto-initialize default data path: {e}")
-    else:
-        logger.info("No default data directory found on host. App starting in UNMOUNTED state.")
+    try:
+        default_dir.mkdir(parents=True, exist_ok=True)
+        settings.ensure_directories()
+        logger.info("Auto-initializing default data path: %s", default_dir.resolve())
+        app_state.vector_store.initialize(str(settings.chroma_persist_dir))
+        app_state.current_mount_path = str(default_dir.resolve())
+        app_state.resolved_mount_path = str(default_dir.resolve())
+        logger.info("Default vector store ready")
+    except Exception as e:
+        logger.warning("Failed to auto-initialize default data path: %s", e)
+        logger.info("App starting in UNMOUNTED state — set a path from the UI.")
 
     # Load embedding model
     logger.info("Loading embedding model...")
@@ -179,21 +180,18 @@ async def get_image(image_path: str):
     """Serve images dynamically from the currently mounted image store directory."""
     if not app_state.current_mount_path:
         raise HTTPException(status_code=400, detail="No data path is currently mounted.")
-        
+
     full_path = settings.image_store_dir / image_path
-    
-    # Secure path checks (directory traversal guard)
+
     try:
         resolved = full_path.resolve()
-        base_resolved = settings.image_store_dir.resolve()
-        if not str(resolved).startswith(str(base_resolved)):
-            raise HTTPException(status_code=403, detail="Access denied")
+        resolved.relative_to(settings.image_store_dir.resolve())
     except Exception:
-        raise HTTPException(status_code=404, detail="Image not found")
-        
+        raise HTTPException(status_code=404, detail="Image not found") from None
+
     if not resolved.exists() or not resolved.is_file():
         raise HTTPException(status_code=404, detail="Image not found")
-        
+
     return FileResponse(resolved)
 
 

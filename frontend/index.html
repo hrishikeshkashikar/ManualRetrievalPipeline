@@ -142,9 +142,9 @@
             <span class="status-label" id="sidebar-status-label">Connecting...</span>
           </div>
         </div>
-        <button class="btn btn-secondary btn-xs" id="sidebar-change-mount-btn" style="width: 100%; font-size: 11px; padding: 6px 8px; justify-content: center; display: flex; align-items: center; gap: 6px;">
+        <button class="btn btn-secondary btn-xs" id="sidebar-change-mount-btn" style="width: 100%; font-size: 11px; padding: 6px 8px; justify-content: center; display: flex; align-items: center; gap: 6px;" title="Change knowledge-base folder">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px;"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></svg>
-          <span>Change Data Path</span>
+          <span id="sidebar-mount-label">Change Data Path</span>
         </button>
         <button class="sidebar-toggle" id="sidebar-toggle-btn" title="Toggle sidebar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -309,26 +309,33 @@
   <!-- DYNAMIC MOUNT MODAL OVERLAY                                        -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <div class="modal-overlay hidden" id="mount-modal" style="z-index: 9999; backdrop-filter: blur(20px);">
-    <div class="modal" style="max-width: 480px;">
-      <div class="modal-title">📁 Mount Data Directory</div>
+    <div class="modal" style="max-width: 560px;">
+      <div class="modal-title">Select Data Folder</div>
       <div class="modal-body" style="display: flex; flex-direction: column; gap: var(--space-3);">
-        <p>Provide the absolute path to your index/data folder to initialize the system.</p>
-        
-        <div style="background: var(--bg-elevated); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--surface-glass-border); font-size: var(--text-xs); color: var(--text-secondary);">
-          <strong>Supported path formats:</strong><br>
-          • <strong>Host Paths:</strong> <code>/Users/name/data</code> or <code>/Volumes/USB/data</code> (resolved dynamically)<br>
-          • <strong>Container Paths:</strong> <code>/app/data</code> (default auto-loaded directory)
+        <p style="color: var(--text-secondary); font-size: var(--text-sm); margin: 0;">
+          Browse folders on <strong>this machine</strong> (and USB drives). Same image works on any PC — just pick the path here.
+        </p>
+
+        <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;" id="browse-roots"></div>
+
+        <div style="display: flex; align-items: center; gap: var(--space-2);">
+          <button type="button" class="btn btn-ghost btn-sm" id="browse-up-btn" title="Go up">↑ Up</button>
+          <div id="browse-current-path" style="flex: 1; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></div>
         </div>
-        
-        <div style="display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-2);">
-          <label for="mount-path-input" style="font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--text-secondary);">Absolute Path</label>
-          <input type="text" id="mount-path-input" placeholder="e.g. /media/usb/data" style="width: 100%; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--surface-glass-border); background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-sm);" />
+
+        <div id="browse-listing" style="max-height: 240px; overflow: auto; border: 1px solid var(--surface-glass-border); border-radius: var(--radius-md); background: var(--bg-deep);">
+          <div style="padding: var(--space-4); color: var(--text-tertiary); font-size: var(--text-sm);">Loading folders…</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+          <label for="mount-path-input" style="font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--text-secondary);">Selected path</label>
+          <input type="text" id="mount-path-input" placeholder="Browse above or paste an absolute path" style="width: 100%; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--surface-glass-border); background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-sm);" />
         </div>
       </div>
       <div class="modal-actions">
         <button class="btn btn-secondary hidden" id="mount-modal-cancel">Cancel</button>
         <button class="btn btn-primary" id="mount-modal-confirm" style="display: flex; align-items: center; gap: 8px;">
-          <span>Mount Path</span>
+          <span>Use This Folder</span>
           <div class="spinner hidden" id="mount-modal-spinner" style="width: 14px; height: 14px; border-width: 2px;"></div>
         </button>
       </div>
@@ -343,13 +350,13 @@
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- SCRIPTS (order matters: utils → api → modules → app)              -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <script src="js/utils.js?v=3"></script>
-  <script src="js/api.js?v=3"></script>
-  <script src="js/health.js?v=3"></script>
-  <script src="js/manuals.js?v=3"></script>
-  <script src="js/ingest.js?v=3"></script>
-  <script src="js/chat.js?v=3"></script>
-  <script src="js/app.js?v=3"></script>
+  <script src="js/utils.js?v=4"></script>
+  <script src="js/api.js?v=4"></script>
+  <script src="js/health.js?v=4"></script>
+  <script src="js/manuals.js?v=4"></script>
+  <script src="js/ingest.js?v=4"></script>
+  <script src="js/chat.js?v=4"></script>
+  <script src="js/app.js?v=4"></script>
 
 </body>
 </html>

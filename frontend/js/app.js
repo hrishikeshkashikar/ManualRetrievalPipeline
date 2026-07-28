@@ -58,6 +58,23 @@ function closeSourcePanel() {
 const mountManager = {
   currentPath: null,
   isMounted: false,
+  browsePath: '/',
+  browseParent: null,
+
+  updateSidebarLabel() {
+    const label = $('#sidebar-mount-label');
+    if (!label) return;
+    if (this.currentPath) {
+      const short = this.currentPath.length > 28
+        ? '…' + this.currentPath.slice(-27)
+        : this.currentPath;
+      label.textContent = short;
+      label.title = this.currentPath;
+    } else {
+      label.textContent = 'Change Data Path';
+      label.title = 'Mount a knowledge-base folder';
+    }
+  },
 
   async checkMountStatus() {
     try {
@@ -65,16 +82,19 @@ const mountManager = {
       if (config.status === 'mounted') {
         this.isMounted = true;
         this.currentPath = config.path;
+        this.updateSidebarLabel();
         this.hideModal();
         return true;
       } else {
         this.isMounted = false;
         this.currentPath = null;
-        this.showModal(false); // No cancel button allowed
+        this.updateSidebarLabel();
+        this.showModal(false);
         return false;
       }
     } catch (err) {
       this.isMounted = false;
+      this.updateSidebarLabel();
       this.showModal(false);
       return false;
     }
@@ -93,8 +113,11 @@ const mountManager = {
     const input = $('#mount-path-input');
     if (input) {
       input.value = this.currentPath || '';
-      input.focus();
     }
+
+    // Start browser at current path's parent, or roots
+    const start = this.currentPath || '/';
+    this.loadBrowse(start).catch(() => this.loadBrowse('/'));
   },
 
   hideModal() {
@@ -102,10 +125,75 @@ const mountManager = {
     modal?.classList.add('hidden');
   },
 
+  async loadBrowse(path) {
+    const listing = $('#browse-listing');
+    const pathLabel = $('#browse-current-path');
+    const rootsEl = $('#browse-roots');
+    if (listing) {
+      listing.innerHTML = `<div style="padding: var(--space-4); color: var(--text-tertiary); font-size: var(--text-sm);">Loading…</div>`;
+    }
+
+    try {
+      const data = await api.browseHostPath(path);
+      this.browsePath = data.path;
+      this.browseParent = data.parent;
+
+      if (pathLabel) pathLabel.textContent = data.path === '/' ? 'This machine' : data.path;
+
+      if (rootsEl) {
+        rootsEl.innerHTML = (data.roots || []).map((r) => `
+          <button type="button" class="btn btn-secondary btn-xs browse-root-btn" data-path="${escapeHtml(r.path)}">${escapeHtml(r.label)}</button>
+        `).join('');
+        rootsEl.querySelectorAll('.browse-root-btn').forEach((btn) => {
+          btn.addEventListener('click', () => this.loadBrowse(btn.dataset.path));
+        });
+      }
+
+      if (!listing) return;
+
+      if (!data.entries || data.entries.length === 0) {
+        listing.innerHTML = `<div style="padding: var(--space-4); color: var(--text-tertiary); font-size: var(--text-sm);">No subfolders here. You can still use this folder.</div>`;
+      } else {
+        listing.innerHTML = data.entries.map((e) => `
+          <button type="button" class="browse-entry" data-path="${escapeHtml(e.path)}" style="display: flex; width: 100%; align-items: center; gap: 10px; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--surface-glass-border); background: transparent; color: var(--text-primary); text-align: left; cursor: pointer;">
+            <span style="opacity: 0.7;">📁</span>
+            <span style="flex: 1; font-size: var(--text-sm);">${escapeHtml(e.name)}</span>
+            ${e.looks_like_kb ? '<span class="badge badge-success" style="font-size: 10px;">data</span>' : ''}
+          </button>
+        `).join('');
+
+        listing.querySelectorAll('.browse-entry').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const p = btn.dataset.path;
+            const input = $('#mount-path-input');
+            if (input) input.value = p;
+            this.loadBrowse(p);
+          });
+          btn.addEventListener('dblclick', () => {
+            const p = btn.dataset.path;
+            const input = $('#mount-path-input');
+            if (input) input.value = p;
+            this.mount();
+          });
+        });
+      }
+
+      // Selecting current browse folder
+      const input = $('#mount-path-input');
+      if (input && data.path && data.path !== '/') {
+        input.value = data.path;
+      }
+    } catch (err) {
+      if (listing) {
+        listing.innerHTML = `<div style="padding: var(--space-4); color: var(--color-danger); font-size: var(--text-sm);">${escapeHtml(err.message || 'Failed to browse')}</div>`;
+      }
+    }
+  },
+
   async mount() {
     const input = $('#mount-path-input');
     if (!input || !input.value.trim()) {
-      showToast('warning', 'Invalid Path', 'Please enter a valid absolute directory path.');
+      showToast('warning', 'Invalid Path', 'Select a folder from the browser or paste an absolute path.');
       return;
     }
 
@@ -121,10 +209,10 @@ const mountManager = {
       if (res.status === 'mounted') {
         this.isMounted = true;
         this.currentPath = res.path;
-        showToast('success', 'Path Mounted', `Successfully mounted data path to: ${res.path}`);
+        this.updateSidebarLabel();
+        showToast('success', 'Path Mounted', res.message || `Mounted: ${res.path}`);
         this.hideModal();
-        
-        // Refresh application state
+
         healthDashboard.refresh();
         if (currentView === 'chat') {
           chatInterface.init();
@@ -188,6 +276,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Mount modal actions
   const mountConfirmBtn = $('#mount-modal-confirm');
   if (mountConfirmBtn) mountConfirmBtn.addEventListener('click', () => mountManager.mount());
+
+  const browseUpBtn = $('#browse-up-btn');
+  if (browseUpBtn) {
+    browseUpBtn.addEventListener('click', () => {
+      const parent = mountManager.browseParent || '/';
+      mountManager.loadBrowse(parent);
+    });
+  }
 
   const mountInput = $('#mount-path-input');
   if (mountInput) {

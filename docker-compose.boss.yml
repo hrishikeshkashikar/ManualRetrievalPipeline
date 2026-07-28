@@ -1,0 +1,37 @@
+# Boss / teammate deploy — one image, pick path in the UI
+#
+# Prerequisites:
+#   1. Docker Desktop
+#   2. Ollama + model: ollama pull qwen2.5vl:3b
+#   3. Load image: gunzip -c manual-rag-dev.tar.gz | docker load
+#
+# Start:
+#   docker compose -f docker-compose.boss.yml up -d
+#
+# Open http://localhost:8000/ → Change Data Path → browse this PC / USB.
+#
+# Linux: also add volume lines for /home, /media, /mnt under /host/...
+
+services:
+  rag-api:
+    image: manual-rag-dev:latest
+    container_name: manual-rag-dev
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${HOST_DATA_DIR:-./data}:/app/data
+      - /Users:/host/Users
+      - /Volumes:/host/Volumes
+    environment:
+      - MANUAL_RAG_IN_DOCKER=1
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-qwen2.5vl:3b}
+      - HF_HOME=/root/.cache/huggingface
+      - HF_HUB_OFFLINE=0
+      - DATA_DIR=/app/data
+      - CHROMA_PERSIST_DIR=/app/data/chroma_db
+      - IMAGE_STORE_DIR=/app/data/images
+      - MANUAL_STORE_DIR=/app/data/manuals
+    restart: unless-stopped

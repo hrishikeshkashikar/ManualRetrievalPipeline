@@ -14,6 +14,7 @@ import ollama
 from app.config import settings
 from app.models.schemas import DocumentChunk
 from app.utils.image_utils import load_image, resize_image, image_to_bytes
+from app.utils.path_utils import to_relative_image_path
 
 logger = logging.getLogger(__name__)
 
@@ -182,9 +183,11 @@ class VisionCaptioner:
                     continue
 
                 chunk_id = f"{manual_id}_p{page_num}_cap_{img_info['image_index']}"
-                page_image_path = str(
-                    Path(settings.image_store_dir) / manual_id / f"page_{page_num}.png"
+                page_image_path = to_relative_image_path(
+                    Path(settings.image_store_dir) / manual_id / f"page_{page_num}.png",
+                    manual_id=manual_id,
                 )
+                rel_image_path = to_relative_image_path(image_path, manual_id=manual_id)
 
                 caption_chunks.append(
                     DocumentChunk(
@@ -196,7 +199,7 @@ class VisionCaptioner:
                         page_number=page_num,
                         chunk_index=img_info["image_index"],
                         section_header=None,
-                        image_path=image_path,
+                        image_path=rel_image_path,
                         page_image_path=page_image_path,
                     )
                 )

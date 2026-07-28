@@ -8,17 +8,25 @@
 #    3. Poll Ollama's /api/tags until it responds (health-check loop)
 #    4. Verify the vision model is available inside the container
 #    5. Signal supervisord to start the rag-api process
-#
-#  This script is the Docker ENTRYPOINT. supervisord manages process
-#  lifecycle after handoff.
 # ══════════════════════════════════════════════════════════════════════════
 
 set -euo pipefail
 
 OLLAMA_URL="${OLLAMA_BASE_URL:-http://127.0.0.1:11434}"
 VISION_MODEL="${OLLAMA_VISION_MODEL:-qwen2.5vl:3b}"
-MAX_WAIT=120   # seconds to wait for Ollama to become healthy
+MAX_WAIT=180   # seconds to wait for Ollama to become healthy
 DATA_DIR="${DATA_DIR:-/app/data}"
+OLLAMA_BIN="$(command -v ollama || true)"
+if [ -z "${OLLAMA_BIN}" ]; then
+  if [ -x /usr/bin/ollama ]; then
+    OLLAMA_BIN=/usr/bin/ollama
+  elif [ -x /usr/local/bin/ollama ]; then
+    OLLAMA_BIN=/usr/local/bin/ollama
+  else
+    echo "✗ FATAL: ollama binary not found"
+    exit 1
+  fi
+fi
 
 # ── Banner ────────────────────────────────────────────────────────────────
 echo "╔══════════════════════════════════════════════════════════╗"
@@ -27,6 +35,7 @@ echo "╚═══════════════════════�
 echo ""
 echo "  Vision Model  : ${VISION_MODEL}"
 echo "  Ollama URL    : ${OLLAMA_URL}"
+echo "  Ollama binary : ${OLLAMA_BIN}"
 echo "  Data Dir      : ${DATA_DIR}"
 echo ""
 
@@ -82,7 +91,7 @@ if echo "${MODELS_JSON}" | grep -q "${VISION_MODEL%:*}"; then
     echo "  ✓ Model '${VISION_MODEL}' is available"
 else
     echo "  ⚠ Model '${VISION_MODEL}' not found in Ollama — attempting pull..."
-    /usr/local/bin/ollama pull "${VISION_MODEL}" || {
+    "${OLLAMA_BIN}" pull "${VISION_MODEL}" || {
         echo "  ✗ Model pull failed. Ingestion will not work."
         echo "    If this is an air-gapped environment, rebuild the image"
         echo "    with the correct VISION_MODEL build arg."
@@ -92,6 +101,12 @@ echo ""
 
 # ── Start the RAG API via supervisord ────────────────────────────────────
 echo "▸ Starting RAG API (FastAPI + Uvicorn)..."
+for i in 1 2 3 4 5; do
+  if [ -S /var/run/supervisor.sock ]; then
+    break
+  fi
+  sleep 1
+done
 supervisorctl -s unix:///var/run/supervisor.sock start rag-api
 echo "  ✓ rag-api process started"
 echo ""
@@ -103,9 +118,10 @@ echo "║    Docs:  http://0.0.0.0:8000/docs                      ║"
 echo "║    Ollama http://0.0.0.0:11434                          ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
-echo "  To switch knowledge bases from the UI:"
-echo "  → Open the app → Click 'Change Data Path' in the sidebar"
-echo "  → Enter a container-side path (e.g. /kb/project-alpha)"
+echo "  Data folder is bind-mounted at /app/data by default."
+echo "  To point at a USB / host folder from the UI:"
+echo "    Change Data Path → /Volumes/YourUSB/rag-data  (macOS)"
+echo "                    → /media/usb/rag-data         (Linux)"
 echo ""
 
 # Hand off to supervisord — it will keep both processes running

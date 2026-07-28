@@ -133,6 +133,33 @@ class MountResponse(BaseModel):
     message: str = Field(default="")
 
 
+class BrowseRoot(BaseModel):
+    """A host root the UI can browse."""
+
+    path: str
+    label: str
+    available: bool = True
+
+
+class BrowseEntry(BaseModel):
+    """A subdirectory entry in the host browser."""
+
+    name: str
+    path: str
+    is_dir: bool = True
+    looks_like_kb: bool = False
+
+
+class BrowseResponse(BaseModel):
+    """Directory listing for the host-path browser."""
+
+    path: str
+    parent: str | None = None
+    entries: list[BrowseEntry]
+    roots: list[BrowseRoot] = Field(default_factory=list)
+    in_docker: bool = False
+
+
 # ── Health Schemas ──────────────────────────────────────────────────────────
 
 

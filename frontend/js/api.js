@@ -93,6 +93,11 @@ class ApiClient {
     return this._request('POST', '/config/mount', { body: { path } });
   }
 
+  async browseHostPath(path = '/') {
+    const q = encodeURIComponent(path || '/');
+    return this._request('GET', `/config/browse?path=${q}`);
+  }
+
   // ── Query ─────────────────────────────────────────────────────────
 
   async query(request) {

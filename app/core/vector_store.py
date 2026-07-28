@@ -30,11 +30,17 @@ class VectorStore:
         self._client: chromadb.PersistentClient | None = None
 
     def initialize(self, path: str | None = None) -> None:
-        """Initialize the ChromaDB persistent client."""
+        """Initialize (or re-initialize) the ChromaDB persistent client."""
         persist_path = path or str(settings.chroma_persist_dir)
-        logger.info(f"Initializing ChromaDB at {persist_path}")
+        logger.info("Initializing ChromaDB at %s", persist_path)
+
+        # Drop previous client so remounts don't keep a locked/stale handle
+        self._client = None
+
+        from pathlib import Path
+
+        Path(persist_path).mkdir(parents=True, exist_ok=True)
         self._client = chromadb.PersistentClient(path=persist_path)
-        # Ensure the unified collection exists
         self._get_or_create_unified_collection()
         logger.info("ChromaDB initialized successfully")
 

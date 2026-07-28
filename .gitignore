@@ -20,6 +20,11 @@ env/
 data/manuals/*.pdf
 data/images/
 data/chroma_db/
+docker-compose.override.yml
+bundle/
+exports/
+*.tar
+*.tar.gz
 
 # IDE
 .vscode/

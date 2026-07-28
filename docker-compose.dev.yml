@@ -1,0 +1,49 @@
+# Dev compose — uses host Ollama + downloads HF models on first start.
+# Much faster than baking models into the image. Not for air-gapped deploy.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# Point at a host/USB data folder (recommended — no UI remount needed):
+#   HOST_DATA_DIR=/Users/devshah/Downloads/data docker compose -f docker-compose.dev.yml up --build
+#
+# Or keep ./data as /app/data and use UI "Change Data Path" with a host path
+# under /Users or /Volumes (those roots are mirrored into /host/...).
+
+services:
+  rag-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: manual-rag-dev:latest
+    container_name: manual-rag-dev
+    ports:
+      - "${API_PORT:-8000}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Primary knowledge base
+      - ${HOST_DATA_DIR:-./data}:/app/data
+      # HF model cache (avoid re-downloading embedding/reranker)
+      - ${HF_HOME:-${HOME}/.cache/huggingface}:/root/.cache/huggingface
+      # Live-reload app/UI during local Docker testing
+      - ./app:/app/app
+      - ./frontend:/app/frontend
+      # Host mirrors so UI "Change Data Path" can resolve absolute Mac paths
+      - /Users:/host/Users
+      - /Volumes:/host/Volumes
+    environment:
+      - MANUAL_RAG_IN_DOCKER=1
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-qwen2.5vl:3b}
+      - HF_HOME=/root/.cache/huggingface
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
+      - TRANSFORMERS_OFFLINE=${TRANSFORMERS_OFFLINE:-0}
+      - DATA_DIR=/app/data
+      - CHROMA_PERSIST_DIR=/app/data/chroma_db
+      - IMAGE_STORE_DIR=/app/data/images
+      - MANUAL_STORE_DIR=/app/data/manuals
+      - EMBEDDING_MODEL_NAME=${EMBEDDING_MODEL_NAME:-BAAI/bge-base-en-v1.5}
+      - RERANKER_MODEL_NAME=${RERANKER_MODEL_NAME:-BAAI/bge-reranker-v2-m3}
+      - HOST_DATA_DIR=${HOST_DATA_DIR:-./data}
+    restart: unless-stopped

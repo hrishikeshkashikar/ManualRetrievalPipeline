@@ -7,13 +7,13 @@ responses based on retrieved context (text + images).
 
 import json
 import logging
-from pathlib import Path
 
 import ollama
 
 from app.config import settings
 from app.models.schemas import RetrievedChunk
 from app.utils.image_utils import load_image, resize_image, image_to_bytes
+from app.utils.path_utils import resolve_stored_image_path
 
 logger = logging.getLogger(__name__)
 
@@ -142,13 +142,13 @@ class Generator:
                 break
 
             # Prefer page image path, fall back to image path
-            img_path = rc.chunk.page_image_path or rc.chunk.image_path
-            if not img_path or img_path in seen_paths:
+            stored = rc.chunk.page_image_path or rc.chunk.image_path
+            if not stored or stored in seen_paths:
                 continue
 
-            path = Path(img_path)
-            if not path.exists():
-                logger.warning(f"Image not found: {img_path}")
+            path = resolve_stored_image_path(stored)
+            if path is None:
+                logger.warning("Image not found: %s", stored)
                 continue
 
             try:
@@ -156,12 +156,12 @@ class Generator:
                 image = resize_image(image, self.max_resolution)
                 img_bytes = image_to_bytes(image, format="PNG")
                 images.append(img_bytes)
-                seen_paths.add(img_path)
+                seen_paths.add(stored)
             except Exception as e:
-                logger.warning(f"Failed to load image {img_path}: {e}")
+                logger.warning("Failed to load image %s: %s", stored, e)
                 continue
 
-        logger.debug(f"Collected {len(images)} images for generation")
+        logger.debug("Collected %s images for generation", len(images))
         return images
 
     def _parse_response(self, raw_response: str) -> dict:

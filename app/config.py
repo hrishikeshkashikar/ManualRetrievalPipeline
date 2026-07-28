@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     # ── Ollama ──────────────────────────────────────────────────────────
     ollama_base_url: str = "http://localhost:11434"
-    ollama_vision_model: str = "qwen2.5vl:7b"
+    ollama_vision_model: str = "qwen2.5vl:3b"
     ollama_request_timeout: float = 300.0  # seconds – vision inference can be slow
     ollama_num_ctx: int = 32768  # context window size for Ollama models
 

@@ -132,11 +132,50 @@ curl -X POST http://localhost:8000/query \
 }
 ```
 
-## Docker Deployment
+## Docker Deployment (recommended)
+
+Self-contained image: Ollama + vision model + embedding/reranker models baked in.
+The **data folder** (manuals, images, Chroma embeddings) is bind-mounted so you can
+ingest on a powerful machine, copy the folder to a USB stick, and query offline elsewhere.
+
+### 1. Build once (needs internet)
 
 ```bash
-docker compose up -d
+./scripts/build.sh --model qwen2.5vl:3b
+# optional: ./scripts/build.sh --model qwen2.5vl:3b --export
 ```
+
+### 2. Run locally
+
+```bash
+./scripts/run.sh                  # uses ./data
+./scripts/run.sh /path/to/data    # or a USB path, e.g. /Volumes/USB/rag-data
+```
+
+Open http://localhost:8000/ — upload manuals (embeddings written into that folder).
+
+### 3. Share with another machine / boss
+
+```bash
+./scripts/export_image.sh
+# Copy manual-rag-full.tar.gz + docker-compose.yml + scripts/load_and_run.sh + your data/ folder
+```
+
+On the target machine (no internet needed after load):
+
+```bash
+./scripts/load_and_run.sh --image ./manual-rag-full.tar.gz --data /media/usb/rag-data
+```
+
+### 4. Pendrive workflow
+
+1. Powerful machine: `./scripts/run.sh --build ./data` → ingest PDFs in the UI  
+2. Copy the entire `data/` folder to the USB stick  
+3. Offline machine: `./scripts/run.sh /Volumes/YourUSB/data` (or Linux `/media/...`)  
+4. Query — no re-embedding required  
+
+The UI **Change Data Path** control can also switch folders under `/Users`, `/Volumes`,
+`/home`, `/media`, or `/mnt` (mirrored into the container by `run.sh`).
 
 ## Project Structure
 
