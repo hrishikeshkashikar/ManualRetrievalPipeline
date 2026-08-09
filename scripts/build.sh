@@ -63,18 +63,22 @@ if ! command -v docker &>/dev/null; then
   exit 1
 fi
 
-if ! docker info &>/dev/null; then
-  echo "✗ Docker daemon is not running. Start Docker and try again."
+echo "▸ Checking Docker daemon..."
+# docker info can hang forever if Desktop is starting / disk is full
+if ! perl -e 'alarm shift; exec @ARGV' 15 docker info &>/dev/null; then
+  echo "✗ Docker is not responding (not running, still starting, or disk almost full)."
+  echo "  1. Open Docker Desktop and wait until it says Running"
+  echo "  2. Free disk space (need ~20+ GB) — last build failed with I/O error at ~1 GB free"
+  echo "  3. Retry: ./scripts/build.sh --model qwen2.5vl:3b --export"
   exit 1
 fi
+echo "  ✓ Docker is ready"
+echo ""
 
 # Warn about image size
 echo "  ⚠ This build downloads and bakes in all models."
 echo "    Estimated time : 10–30 min (depending on download speed)"
 echo "    Estimated size : 8–10 GB (depending on vision model)"
-echo ""
-echo "  Press Ctrl+C within 5 seconds to cancel..."
-sleep 5
 echo ""
 
 # ── Build ──────────────────────────────────────────────────────────────────

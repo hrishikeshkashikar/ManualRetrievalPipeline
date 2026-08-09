@@ -36,18 +36,14 @@ RUN ollama serve & \
     echo "Model pull complete. Shutting down Ollama..." && \
     kill $OLLAMA_PID && \
     wait $OLLAMA_PID 2>/dev/null || true && \
-    mkdir -p /export/usr/bin /export/usr/lib && \
+    mkdir -p /export/usr/bin /export/usr/lib/ollama /export/ollama-home && \
     cp /usr/bin/ollama /export/usr/bin/ollama && \
     if [ -d /usr/lib/ollama ]; then \
-      cp -a /usr/lib/ollama /export/usr/lib/ && \
-      rm -rf /export/usr/lib/ollama/cuda* \
-             /export/usr/lib/ollama/rocm* \
-             /export/usr/lib/ollama/vulkan* \
-             /export/usr/lib/ollama/*cuda* 2>/dev/null || true; \
-    else \
-      mkdir -p /export/usr/lib/ollama; \
+      find /usr/lib/ollama -maxdepth 1 -mindepth 1 \
+        ! -name 'cuda*' ! -name 'rocm*' ! -name 'vulkan*' \
+        -exec cp -a {} /export/usr/lib/ollama/ \; ; \
     fi && \
-    cp -a /root/.ollama /export/ollama-home && \
+    cp -a /root/.ollama/. /export/ollama-home && \
     echo "Exported ollama lib size:" && du -sh /export/usr/lib/ollama /export/ollama-home
 
 # ══════════════════════════════════════════════════════════════════════════

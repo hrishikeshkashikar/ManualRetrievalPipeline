@@ -19,8 +19,9 @@ services:
         RERANKER_MODEL: ${RERANKER_MODEL_NAME:-BAAI/bge-reranker-v2-m3}
     container_name: manual-rag-app
     ports:
+      # Ollama stays inside the container (OLLAMA_BASE_URL=127.0.0.1:11434).
+      # Do not publish 11434 — it clashes with a host Ollama install.
       - "${API_PORT:-8000}:8000"
-      - "${OLLAMA_PORT:-11434}:11434"
     volumes:
       # Primary portable knowledge base (laptop folder OR USB path)
       - ${HOST_DATA_DIR:-./data}:/app/data
