@@ -32,7 +32,13 @@ class Reranker:
         Load the cross-encoder model into memory.
 
         Call this during application startup (FastAPI lifespan).
+        No-op when enable_reranker is False (edge / low-RAM profile).
         """
+        if not settings.enable_reranker:
+            logger.info("Reranker disabled (ENABLE_RERANKER=false) — skipping load")
+            self._model = None
+            return
+
         logger.info(f"Loading reranker model: {self.model_name}")
         self._model = CrossEncoder(self.model_name)
         logger.info("Reranker model loaded successfully")
@@ -49,6 +55,11 @@ class Reranker:
         """Check if the model is loaded."""
         return self._model is not None
 
+    @property
+    def is_enabled(self) -> bool:
+        """Whether reranking is configured on (model may still be unloaded)."""
+        return settings.enable_reranker
+
     def rerank(
         self,
         query: str,
@@ -57,6 +68,9 @@ class Reranker:
     ) -> list[RetrievedChunk]:
         """
         Rerank retrieved chunks by relevance to the query.
+
+        When the reranker is disabled or not loaded, returns the top_n
+        candidates by vector distance (already ranked by the store).
 
         Args:
             query: The user's query text.
@@ -72,6 +86,19 @@ class Reranker:
             return []
 
         top_n = top_n or settings.top_k_rerank
+
+        if not settings.enable_reranker or self._model is None:
+            # Distance ascending = more similar first from Chroma cosine search
+            by_distance = sorted(chunks, key=lambda c: c.distance)
+            result = by_distance[:top_n]
+            for rc in result:
+                # Approximate relevance from cosine distance for UI scores
+                rc.rerank_score = float(1.0 - rc.distance)
+            logger.debug(
+                "Reranker skipped — using top %s by vector distance",
+                len(result),
+            )
+            return result
 
         # Create (query, document) pairs for the cross-encoder
         pairs = [(query, chunk.chunk.content) for chunk in chunks]

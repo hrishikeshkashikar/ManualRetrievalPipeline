@@ -9,9 +9,11 @@ about machine problems with structured diagnostic responses.
 import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
@@ -45,7 +47,7 @@ class AppState:
     globally via the `app_state` module-level variable.
     """
 
-    pdf_processor: PDFProcessor = field(default_factory=PDFProcessor)
+    pdf_processor: PDFProcessor | None = None
     vision_captioner: VisionCaptioner = field(default_factory=VisionCaptioner)
     embedder: Embedder = field(default_factory=Embedder)
     vector_store: VectorStore = field(default_factory=VectorStore)
@@ -71,7 +73,7 @@ async def lifespan(app: FastAPI):
     Startup:
     - Ensure data directories exist (if default exists)
     - Load embedding model
-    - Load reranker model
+    - Load reranker model (unless ENABLE_RERANKER=false)
     - Initialize vector store (if default exists)
     - Create RAG pipeline
 
@@ -82,7 +84,21 @@ async def lifespan(app: FastAPI):
 
     logger.info("=" * 60)
     logger.info("  Machine Manual RAG Pipeline — Starting Up")
+    if settings.query_only:
+        logger.info("  Mode: QUERY-ONLY (edge) — ingest disabled")
+    logger.info(
+        "  Profile: num_ctx=%s max_images=%s reranker=%s",
+        settings.ollama_num_ctx,
+        settings.max_generation_images,
+        settings.enable_reranker,
+    )
     logger.info("=" * 60)
+
+    # PDF processor only needed for ingest
+    if not settings.query_only:
+        app_state.pdf_processor = PDFProcessor()
+    else:
+        app_state.pdf_processor = None
 
     # Auto-mount default DATA_DIR when present (Docker: /app/data volume)
     default_dir = settings.data_dir
@@ -102,7 +118,7 @@ async def lifespan(app: FastAPI):
     logger.info("Loading embedding model...")
     app_state.embedder.load()
 
-    # Load reranker model
+    # Load reranker model (skipped when disabled for edge RAM budget)
     logger.info("Loading reranker model...")
     app_state.reranker.load()
 
@@ -120,11 +136,17 @@ async def lifespan(app: FastAPI):
             f"Ollama connected — model '{settings.ollama_vision_model}' available"
         )
     else:
-        logger.warning(
-            f"Ollama model '{settings.ollama_vision_model}' not available. "
-            "Ingestion will fail for image captioning. "
-            "Run: ollama pull {settings.ollama_vision_model}"
-        )
+        if settings.query_only:
+            logger.warning(
+                f"Ollama model '{settings.ollama_vision_model}' not available. "
+                "Query generation will fail until the model is available."
+            )
+        else:
+            logger.warning(
+                f"Ollama model '{settings.ollama_vision_model}' not available. "
+                "Ingestion will fail for image captioning. "
+                f"Run: ollama pull {settings.ollama_vision_model}"
+            )
 
     logger.info("=" * 60)
     logger.info("  Pipeline ready — accepting requests")
@@ -138,15 +160,24 @@ async def lifespan(app: FastAPI):
 
 # ── FastAPI App ─────────────────────────────────────────────────────────────
 
-app = FastAPI(
-    title="Machine Manual RAG Pipeline",
-    description=(
+if settings.query_only:
+    _description = (
+        "A fully local, offline RAG system for machine manual diagnosis. "
+        "Ask questions about machine problems to get structured diagnostic "
+        "responses. This instance is query-only (no PDF ingest)."
+    )
+else:
+    _description = (
         "A fully local, offline RAG system for machine manual diagnosis. "
         "Upload PDF manuals, then ask questions about machine problems "
         "to get structured diagnostic responses with issue identification, "
         "solutions, and safety warnings — powered by multimodal AI that "
         "understands both text and diagrams."
-    ),
+    )
+
+app = FastAPI(
+    title="Machine Manual RAG Pipeline",
+    description=_description,
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -167,13 +198,11 @@ from app.api.routes_ingest import router as ingest_router
 from app.api.routes_query import router as query_router
 
 app.include_router(health_router)
-app.include_router(ingest_router)
+app.include_router(ingest_router)  # list manuals always; write ops gated by query_only
 app.include_router(query_router)
 
 # ── Dynamic Image Serving (serve page images from the mounted directory) ──
 
-from fastapi.responses import FileResponse
-from fastapi import HTTPException
 
 @app.get("/data/images/{image_path:path}")
 async def get_image(image_path: str):
@@ -196,9 +225,6 @@ async def get_image(image_path: str):
 
 
 # ── Static Files (serve UI frontend directly from root) ─────────────────────
-
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
 frontend_dir = Path(__file__).parent.parent / "frontend"
 if frontend_dir.exists():

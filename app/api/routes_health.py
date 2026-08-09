@@ -143,6 +143,8 @@ async def health_check() -> HealthResponse:
     except Exception as e:
         logger.warning("Ollama health check failed: %s", e)
 
+    from app.config import settings
+
     embedding_loaded = app_state.embedder.is_loaded
     reranker_loaded = app_state.reranker.is_loaded
     vector_store_ready = app_state.vector_store.is_ready
@@ -157,16 +159,17 @@ async def health_check() -> HealthResponse:
         except Exception as e:
             logger.warning("Failed to get manual stats: %s", e)
 
-    all_ok = all(
-        [
-            ollama_connected,
-            ollama_model_available,
-            embedding_loaded,
-            reranker_loaded,
-            vector_store_ready,
-        ]
-    )
-    if all_ok:
+    core_ok = [
+        ollama_connected,
+        ollama_model_available,
+        embedding_loaded,
+        vector_store_ready,
+    ]
+    # Reranker is optional on edge (ENABLE_RERANKER=false)
+    if settings.enable_reranker:
+        core_ok.append(reranker_loaded)
+
+    if all(core_ok):
         status = "healthy"
     elif vector_store_ready and embedding_loaded:
         status = "degraded"
@@ -182,4 +185,6 @@ async def health_check() -> HealthResponse:
         vector_store_ready=vector_store_ready,
         manuals_indexed=manuals_indexed,
         total_chunks=total_chunks,
+        query_only=settings.query_only,
+        reranker_enabled=settings.enable_reranker,
     )

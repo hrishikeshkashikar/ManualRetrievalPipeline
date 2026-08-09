@@ -31,6 +31,12 @@ class Settings(BaseSettings):
 
     # ── Reranker Model (cross-encoder) ─────────────────────────────────
     reranker_model_name: str = "BAAI/bge-reranker-v2-m3"
+    enable_reranker: bool = True  # set False on 8GB edge to save RAM
+
+    # ── Edge / query-only profile ──────────────────────────────────────
+    # When True: no ingest/delete, skip heavy ingest components at startup.
+    # Pair with lower ollama_num_ctx + max_generation_images via env.
+    query_only: bool = False
 
     # ── Storage Paths ──────────────────────────────────────────────────
     data_dir: Path = Path("./data")
@@ -49,6 +55,7 @@ class Settings(BaseSettings):
     # ── Image Processing ───────────────────────────────────────────────
     max_image_resolution: int = 1024  # max width/height in pixels for VLM input
     page_render_dpi: int = 300  # DPI for rendering PDF pages to images
+    max_generation_images: int = 4  # images attached to VLM generate calls
 
     # ── Server ─────────────────────────────────────────────────────────
     host: str = "0.0.0.0"

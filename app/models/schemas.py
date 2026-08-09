@@ -182,6 +182,14 @@ class HealthResponse(BaseModel):
     vector_store_ready: bool = Field(..., description="Whether ChromaDB is operational")
     manuals_indexed: int = Field(..., description="Number of manuals currently indexed")
     total_chunks: int = Field(..., description="Total chunks across all manuals")
+    query_only: bool = Field(
+        default=False,
+        description="True when ingest/delete are disabled (edge query profile)",
+    )
+    reranker_enabled: bool = Field(
+        default=True,
+        description="Whether cross-encoder reranking is enabled in config",
+    )
 
 
 # ── Internal Data Models ────────────────────────────────────────────────────

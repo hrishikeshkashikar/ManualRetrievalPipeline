@@ -49,17 +49,23 @@ class ManualManager {
     if (!container) return;
 
     if (this.manuals.length === 0) {
+      const queryOnly = !!window.__QUERY_ONLY__;
       container.innerHTML = `
         <div class="empty-state">
           <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
           </svg>
           <h3 class="empty-state-title">No Manuals Yet</h3>
-          <p class="empty-state-description">Upload a PDF manual to get started. Head over to the Upload tab to ingest your first manual.</p>
+          <p class="empty-state-description">${
+            queryOnly
+              ? 'Mount a prebuilt data/ folder that already contains indexed manuals. Ingest is disabled on this edge instance.'
+              : 'Upload a PDF manual to get started. Head over to the Upload tab to ingest your first manual.'
+          }</p>
+          ${queryOnly ? '' : `
           <button class="btn btn-primary" onclick="navigateTo('upload')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Upload Manual
-          </button>
+          </button>`}
         </div>
       `;
       return;
@@ -110,10 +116,11 @@ class ManualManager {
           </div>
         </div>
         <div class="card-footer">
+          ${window.__QUERY_ONLY__ ? '' : `
           <button class="btn btn-danger btn-sm" style="margin-left: auto;" onclick="manualManager.confirmDelete('${escapeHtml(manual.manual_id)}', '${escapeHtml(manual.filename)}')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
             Delete
-          </button>
+          </button>`}
         </div>
       </div>
     `;

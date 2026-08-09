@@ -127,18 +127,24 @@ class Generator:
         return "\n\n".join(context_parts)
 
     def _collect_images(
-        self, chunks: list[RetrievedChunk], max_images: int = 4
+        self, chunks: list[RetrievedChunk], max_images: int | None = None
     ) -> list[bytes]:
         """
         Collect unique page images from the retrieved chunks.
 
         Limits to max_images to avoid overloading the VLM context.
+        Pass 0 (via settings.max_generation_images) for text-only generation.
         """
+        limit = settings.max_generation_images if max_images is None else max_images
+        if limit <= 0:
+            logger.debug("max_generation_images=%s — skipping image collection", limit)
+            return []
+
         seen_paths: set[str] = set()
         images: list[bytes] = []
 
         for rc in chunks:
-            if len(images) >= max_images:
+            if len(images) >= limit:
                 break
 
             # Prefer page image path, fall back to image path

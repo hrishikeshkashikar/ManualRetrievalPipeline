@@ -24,6 +24,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ingest", tags=["Ingestion"])
 
 
+def _reject_if_query_only() -> None:
+    """Block write/ingest operations on query-only edge deployments."""
+    if settings.query_only:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "This instance is query-only. Ingest manuals on a stronger "
+                "machine and mount the prebuilt data/ folder here."
+            ),
+        )
+
+
 @router.post(
     "",
     response_model=IngestResponse,
@@ -49,6 +61,8 @@ async def ingest_manual(
     5. Embed all chunks (text + captions)
     6. Store in ChromaDB
     """
+    _reject_if_query_only()
+
     from app.main import app_state
 
     # Validate that we have a mounted data path
@@ -56,6 +70,12 @@ async def ingest_manual(
         raise HTTPException(
             status_code=400,
             detail="UNMOUNTED"
+        )
+
+    if app_state.pdf_processor is None:
+        raise HTTPException(
+            status_code=503,
+            detail="PDF processor is not available on this instance.",
         )
 
     start_time = time.time()
@@ -235,6 +255,8 @@ async def list_manuals() -> ManualListResponse:
 )
 async def delete_manual(manual_id: str) -> DeleteManualResponse:
     """Delete a manual and all its associated data from the index."""
+    _reject_if_query_only()
+
     from app.main import app_state
 
     # Validate that we have a mounted data path

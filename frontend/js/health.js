@@ -87,29 +87,46 @@ class HealthDashboard {
       {
         name: 'Ollama Connection',
         ok: health.ollama_connected,
+        label: health.ollama_connected ? 'Online' : 'Offline',
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2Z"/><path d="M12 2a10 10 0 0 1 10 10"/><circle cx="12" cy="12" r="6"/></svg>`,
       },
       {
         name: 'Vision Model',
         ok: health.ollama_model_available,
+        label: health.ollama_model_available ? 'Online' : 'Offline',
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
       },
       {
         name: 'Embedding Model',
         ok: health.embedding_model_loaded,
+        label: health.embedding_model_loaded ? 'Online' : 'Offline',
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
       },
       {
         name: 'Reranker Model',
-        ok: health.reranker_loaded,
+        ok: health.reranker_enabled ? health.reranker_loaded : true,
+        label: !health.reranker_enabled
+          ? 'Disabled (edge)'
+          : (health.reranker_loaded ? 'Online' : 'Offline'),
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>`,
       },
       {
         name: 'Vector Store',
         ok: health.vector_store_ready,
+        label: health.vector_store_ready ? 'Online' : 'Offline',
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>`,
       },
     ];
+
+    if (typeof applyQueryOnlyMode === 'function') {
+      applyQueryOnlyMode(health.query_only);
+    } else {
+      window.__QUERY_ONLY__ = !!health.query_only;
+    }
+
+    const modeNote = health.query_only
+      ? `<div style="font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-2);">Mode: query-only (edge) — ingest disabled</div>`
+      : '';
 
     container.innerHTML = `
       <!-- Overall Status Banner -->
@@ -123,6 +140,7 @@ class HealthDashboard {
             <div style="font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-1);">
               Status: <span style="font-family: var(--font-mono);">${health.status}</span>
             </div>
+            ${modeNote}
           </div>
           <button class="btn btn-ghost btn-sm" style="margin-left: auto;" onclick="healthDashboard.refresh()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
@@ -159,7 +177,7 @@ class HealthDashboard {
               <div style="flex: 1;">
                 <div style="font-size: var(--text-sm); font-weight: var(--weight-medium);">${c.name}</div>
               </div>
-              <span class="badge ${c.ok ? 'badge-success' : 'badge-danger'}">${c.ok ? 'Online' : 'Offline'}</span>
+              <span class="badge ${c.ok ? 'badge-success' : 'badge-danger'}">${c.label}</span>
             </div>
           </div>
         `).join('')}

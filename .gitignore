@@ -36,6 +36,9 @@ exports/
 .DS_Store
 Thumbs.db
 
+# Launcher build staging
+launcher/.dmg-stage/
+
 # Testing
 .pytest_cache/
 htmlcov/

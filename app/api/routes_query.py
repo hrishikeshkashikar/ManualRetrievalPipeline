@@ -53,8 +53,8 @@ async def query_rag(request: QueryRequest) -> QueryResponse:
             status_code=400,
             detail=(
                 "No manuals have been indexed yet. "
-                "Please ingest at least one manual using POST /ingest "
-                "before querying."
+                "Mount a prebuilt data/ folder that already contains "
+                "indexed manuals, or ingest on a full (non-query-only) instance."
             ),
         )
 
@@ -104,8 +104,8 @@ async def query_rag_stream(request: QueryRequest):
             status_code=400,
             detail=(
                 "No manuals have been indexed yet. "
-                "Please ingest at least one manual using POST /ingest "
-                "before querying."
+                "Mount a prebuilt data/ folder that already contains "
+                "indexed manuals, or ingest on a full (non-query-only) instance."
             ),
         )
 

@@ -14,13 +14,15 @@
 #  Options:
 #    --model    <tag>   Ollama vision model to bake in (default: qwen2.5vl:3b)
 #    --tag      <tag>   Docker image tag (default: manual-rag:latest)
-#    --export           Export image to manual-rag-full.tar.gz after build
+#    --edge             Build/tag for 8GB query-only edge (default tag: manual-rag-query:latest)
+#    --export           Export image to tar.gz after build
 #    --no-cache         Force a clean rebuild (no Docker layer cache)
 #    --help             Show this help
 #
 #  Examples:
 #    ./scripts/build.sh
 #    ./scripts/build.sh --model qwen2.5vl:3b --tag manual-rag:3b
+#    ./scripts/build.sh --edge --export
 #    ./scripts/build.sh --model qwen2.5vl:7b --export
 #    ./scripts/build.sh --model llama3.2-vision:11b --tag manual-rag:11b --export
 # ══════════════════════════════════════════════════════════════════════════
@@ -32,21 +34,27 @@ VISION_MODEL="qwen2.5vl:3b"
 IMAGE_TAG="manual-rag:latest"
 DO_EXPORT=false
 NO_CACHE=""
+EDGE_BUILD=false
 
 # ── Parse args ─────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --model)   VISION_MODEL="$2"; shift 2 ;;
     --tag)     IMAGE_TAG="$2";    shift 2 ;;
+    --edge)    EDGE_BUILD=true;   shift   ;;
     --export)  DO_EXPORT=true;    shift   ;;
     --no-cache) NO_CACHE="--no-cache"; shift ;;
     --help)
-      sed -n '2,30p' "$0"
+      sed -n '2,32p' "$0"
       exit 0
       ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+if [ "$EDGE_BUILD" = true ] && [ "$IMAGE_TAG" = "manual-rag:latest" ]; then
+  IMAGE_TAG="manual-rag-query:latest"
+fi
 
 # ── Preflight checks ───────────────────────────────────────────────────────
 echo "╔══════════════════════════════════════════════════════════╗"
@@ -55,6 +63,7 @@ echo "╚═══════════════════════�
 echo ""
 echo "  Vision Model  : ${VISION_MODEL}"
 echo "  Image Tag     : ${IMAGE_TAG}"
+echo "  Edge profile  : ${EDGE_BUILD}"
 echo "  Export        : ${DO_EXPORT}"
 echo ""
 
@@ -72,6 +81,10 @@ fi
 echo "  ⚠ This build downloads and bakes in all models."
 echo "    Estimated time : 10–30 min (depending on download speed)"
 echo "    Estimated size : 8–10 GB (depending on vision model)"
+if [ "$EDGE_BUILD" = true ]; then
+  echo "    Edge note      : same image runtime; use docker-compose.edge.yml"
+  echo "                     (QUERY_ONLY + low RAM env) on the target host."
+fi
 echo ""
 echo "  Press Ctrl+C within 5 seconds to cancel..."
 sleep 5
@@ -110,11 +123,21 @@ echo ""
 # ── Export ────────────────────────────────────────────────────────────────
 if [ "$DO_EXPORT" = true ]; then
   echo "▸ Exporting image to tar.gz..."
-  ./scripts/export_image.sh --image "${IMAGE_TAG}"
+  if [ "$EDGE_BUILD" = true ]; then
+    ./scripts/export_image.sh --image "${IMAGE_TAG}" --out ./manual-rag-query.tar.gz
+  else
+    ./scripts/export_image.sh --image "${IMAGE_TAG}"
+  fi
 fi
 
-echo "▸ To start the application:"
-echo "    docker compose up -d"
+if [ "$EDGE_BUILD" = true ]; then
+  echo "▸ Edge deploy:"
+  echo "    HOST_DATA_DIR=/path/to/data docker compose -f docker-compose.edge.yml up -d"
+  echo "    # or: ./scripts/load_and_run_edge.sh --data /path/to/data"
+else
+  echo "▸ To start the application:"
+  echo "    docker compose up -d"
+fi
 echo ""
 echo "▸ To export for air-gapped deployment:"
 echo "    ./scripts/export_image.sh --image ${IMAGE_TAG}"

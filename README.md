@@ -167,6 +167,22 @@ On the target machine (no internet needed after load):
 ./scripts/load_and_run.sh --image ./manual-rag-full.tar.gz --data /media/usb/rag-data
 ```
 
+### 3b. Edge query-only (~8 GB RAM) + boss launcher
+
+Ingest on a stronger machine, then ship only the `data/` folder + query image:
+
+```bash
+./scripts/build.sh --edge --export
+./scripts/build_mac_dmg.sh          # optional: macOS ManualRAG.dmg
+./scripts/export_for_edge.sh --with-data /path/to/data
+# Bundle: exports/manual-rag-edge-bundle/ (ManualRAG.exe + ManualRAG.dmg)
+```
+
+On the edge PC: install Docker Desktop once, double-click `ManualRAG.exe` (Windows) or open `ManualRAG.dmg` → `ManualRAG.app` (Mac), enter/pick the `data/` path.
+Or: `HOST_DATA_DIR=/path/to/data docker compose -f docker-compose.edge.yml up -d`
+
+Validate locally: `./scripts/validate_edge_profile.sh`
+
 ### 4. Pendrive workflow
 
 1. Powerful machine: `./scripts/run.sh --build ./data` → ingest PDFs in the UI  

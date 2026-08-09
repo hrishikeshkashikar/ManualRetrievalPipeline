@@ -309,8 +309,27 @@ document.addEventListener('DOMContentLoaded', () => {
     mountManager.showModal(false);
   });
 
+  // Apply query-only UI (hide ingest/delete) from /health
+  function applyQueryOnlyMode(queryOnly) {
+    window.__QUERY_ONLY__ = !!queryOnly;
+    const uploadNav = $('#nav-upload');
+    if (uploadNav) {
+      uploadNav.classList.toggle('hidden', !!queryOnly);
+      uploadNav.style.display = queryOnly ? 'none' : '';
+    }
+    const brandSub = document.querySelector('.sidebar-brand p');
+    if (brandSub && queryOnly) {
+      brandSub.textContent = 'Query-only (edge)';
+    }
+  }
+  window.applyQueryOnlyMode = applyQueryOnlyMode;
+
   // Initial boot: check mount status first
   mountManager.checkMountStatus().then((mounted) => {
+    api.getHealth().then((h) => {
+      applyQueryOnlyMode(h.query_only);
+    }).catch(() => {});
+
     if (mounted) {
       healthDashboard.refresh();
       navigateTo('chat');
