@@ -1,0 +1,29 @@
+# Query-only edge image — no ingest (PyMuPDF), no pytest.
+# Vision LLM runs on host Ollama; only embedding weights are baked in.
+
+# API Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+
+# Images served / attached at query time (no PDF ingest)
+Pillow>=10.0.0
+
+# Embeddings (CPU torch + numpy pinned in Dockerfile.edge for ABI compatibility)
+# Cap ST <4 so we don't pull bleeding-edge transformers that break the pin.
+sentence-transformers>=3.0.0,<4.0.0
+numpy>=1.26,<2
+
+# Vector Store — must match the Chroma version used at ingest time.
+# This project's data/ opens with 1.5.x; 0.5.x fails with KeyError '_type',
+# and some 1.0.x rust builds panic on these DBs.
+chromadb>=1.5.0,<1.6.0
+
+# Ollama Client (talks to host)
+ollama>=0.4.0
+
+# Configuration
+pydantic-settings>=2.0.0
+
+# Utilities
+python-dotenv>=1.0.0

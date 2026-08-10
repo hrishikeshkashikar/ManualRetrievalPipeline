@@ -98,30 +98,33 @@ cat > "$STAGE/README.txt" <<'EOF'
 Manual RAG — macOS Edge Launcher
 ================================
 
-Same idea as ManualRAG.exe on Windows: a thin double-click launcher over Docker.
+Same flow as ManualRAG.exe on Windows:
+  Docker → check Ollama → pull qwen2.5vl:3b if missing → pick data/ → open UI
 
-One-time
---------
+One-time (needs internet once)
+------------------------------
 1. Install Docker Desktop and start it.
-2. Build/load the query image (on a machine with internet):
+2. Install Ollama and open it once: https://ollama.com/download
+3. Have the thin query image ready:
      ./scripts/build.sh --edge --export
-   Then either:
-     docker load < manual-rag-query.tar.gz
-   or put manual-rag-query.tar.gz in this same folder as ManualRAG.app.
+   Then either load it, or put manual-rag-query.tar.gz next to ManualRAG.app
+   (copy app + compose + tar out of this DMG onto a writable folder first).
 
 Every time
 ----------
-1. Open this DMG (or copy ManualRAG.app + docker-compose.edge.yml to a folder).
-2. Double-click ManualRAG.app
-3. Pick your prebuilt data/ folder (chroma_db + images + manuals)
-4. Browser opens at http://localhost:8000/
+1. Copy ManualRAG.app + docker-compose.edge.yml to a writable folder
+   (do not run only from the read-only DMG volume long-term).
+2. Right-click ManualRAG.app → Open → Open  (first time only).
+3. App checks Ollama; pulls qwen2.5vl:3b if missing.
+4. macOS folder picker → select prebuilt data/
+   (must contain chroma_db/, images/, manuals/).
+5. Browser opens http://localhost:8000/
 
 Stop
 ----
   docker compose -f docker-compose.edge.yml down
 
-Note: macOS may say the app is from an unidentified developer.
-  Right-click → Open → Open  (first time only)
+After the model pull, later runs can be air-gapped.
 EOF
 
 if [[ -n "$IMAGE_TAR" ]]; then

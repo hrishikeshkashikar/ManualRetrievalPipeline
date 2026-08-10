@@ -1,13 +1,13 @@
 # Manual RAG — Edge query-only launcher (PowerShell)
-# Requires Docker Desktop once. Prefer ManualRAG.bat for double-click,
-# or compile launcher/main.go to ManualRAG.exe on a machine with Go.
+# Requires Docker Desktop + Ollama once. Prefer ManualRAG.exe for double-click.
 
 param(
     [string]$DataDir = "",
     [string]$Port = "8000",
     [string]$ImageTar = "manual-rag-query.tar.gz",
     [string]$ImageTag = "manual-rag-query:latest",
-    [string]$ComposeFile = "docker-compose.edge.yml"
+    [string]$ComposeFile = "docker-compose.edge.yml",
+    [string]$VisionModel = "qwen2.5vl:3b"
 )
 
 $ErrorActionPreference = "Stop"
@@ -29,6 +29,43 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 try { docker info | Out-Null } catch {
     Write-Host "Docker Desktop is not running. Start it and retry."
     exit 1
+}
+
+if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
+    Write-Host "Ollama is not installed. Install once (needs internet):"
+    Write-Host "  https://ollama.com/download"
+    exit 1
+}
+
+try {
+    Invoke-RestMethod -Uri "http://127.0.0.1:11434/api/tags" -TimeoutSec 2 | Out-Null
+} catch {
+    Write-Host "Starting Ollama..."
+    Start-Process -FilePath "ollama" -ArgumentList "serve" -WindowStyle Hidden
+    $ready = $false
+    for ($i = 0; $i -lt 30; $i++) {
+        Start-Sleep -Seconds 1
+        try {
+            Invoke-RestMethod -Uri "http://127.0.0.1:11434/api/tags" -TimeoutSec 2 | Out-Null
+            $ready = $true
+            break
+        } catch {}
+    }
+    if (-not $ready) {
+        Write-Host "Ollama is not responding. Open the Ollama app and retry."
+        exit 1
+    }
+}
+
+$tags = Invoke-RestMethod -Uri "http://127.0.0.1:11434/api/tags" -TimeoutSec 10
+$names = @()
+if ($tags.models) { $names = $tags.models | ForEach-Object { $_.name } }
+if ($names -notcontains $VisionModel) {
+    Write-Host "Pulling $VisionModel (one-time; needs internet)..."
+    ollama pull $VisionModel
+    Write-Host "Model ready — later runs can be air-gapped."
+} else {
+    Write-Host "Host model $VisionModel present."
 }
 
 if (-not (Test-Path $ComposeFile)) {
@@ -58,6 +95,7 @@ if (-not $imgOk) {
 $env:HOST_DATA_DIR = (Resolve-Path $DataDir).Path
 $env:API_PORT = $Port
 $env:EDGE_IMAGE = $ImageTag
+$env:OLLAMA_VISION_MODEL = $VisionModel
 
 Write-Host "Starting container..."
 docker compose -f $ComposeFile up -d

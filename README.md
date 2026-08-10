@@ -169,17 +169,25 @@ On the target machine (no internet needed after load):
 
 ### 3b. Edge query-only (~8 GB RAM) + boss launcher
 
-Ingest on a stronger machine, then ship only the `data/` folder + query image:
+Thin Docker image (API + embedder + UI only). Vision model runs on **host Ollama**
+(native CPU/GPU). `data/` is always bind-mounted — never baked into the image.
 
 ```bash
-./scripts/build.sh --edge --export
-./scripts/build_mac_dmg.sh          # optional: macOS ManualRAG.dmg
-./scripts/export_for_edge.sh --with-data /path/to/data
-# Bundle: exports/manual-rag-edge-bundle/ (ManualRAG.exe + ManualRAG.dmg)
+./scripts/build.sh --edge --export          # builds Dockerfile.edge → manual-rag-query
+./scripts/build_mac_dmg.sh                  # optional: macOS ManualRAG.dmg
+./scripts/export_for_edge.sh                # bundle without data/
+# optional sample: ./scripts/export_for_edge.sh --with-data /path/to/data
+# Bundle: exports/manual-rag-edge-bundle/
 ```
 
-On the edge PC: install Docker Desktop once, double-click `ManualRAG.exe` (Windows) or open `ManualRAG.dmg` → `ManualRAG.app` (Mac), enter/pick the `data/` path.
-Or: `HOST_DATA_DIR=/path/to/data docker compose -f docker-compose.edge.yml up -d`
+**Edge PC (one-time internet):** install [Docker Desktop](https://www.docker.com/products/docker-desktop/) + [Ollama](https://ollama.com/download). Double-click `ManualRAG.exe` / `ManualRAG.app` — it pulls `qwen2.5vl:3b` if missing, then mounts your `data/` path.
+
+**Later (air-gapped OK):** same launcher; model already local.
+
+```bash
+HOST_DATA_DIR=/path/to/data docker compose -f docker-compose.edge.yml up -d
+# or: ./scripts/load_and_run_edge.sh --data /path/to/data
+```
 
 Validate locally: `./scripts/validate_edge_profile.sh`
 

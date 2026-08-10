@@ -1,16 +1,21 @@
 # Machine Manual RAG — Edge query-only (≈8 GB RAM)
 #
+# Thin image + host Ollama (VLM not baked into Docker).
+#
 # Prerequisites:
 #   1. Docker Desktop / Engine
-#   2. Image: manual-rag-query:latest (or set EDGE_IMAGE)
-#      Build: ./scripts/build.sh --edge --tag manual-rag-query:latest
-#   3. A prebuilt data/ folder (chroma_db + images + manuals) from a full ingest machine
+#   2. Host Ollama + model (one-time internet):
+#        https://ollama.com/download
+#        ollama pull qwen2.5vl:3b
+#   3. Image: manual-rag-query:latest
+#      Build: ./scripts/build.sh --edge
+#   4. A prebuilt data/ folder (chroma_db + images + manuals) from ingest PC
 #
 # Start:
 #   HOST_DATA_DIR=/path/to/data docker compose -f docker-compose.edge.yml up -d
 #
-# Prefer scripts/load_and_run_edge.sh or launcher/ManualRAG.exe — they mount
-# only host roots that exist and open the UI.
+# Prefer ManualRAG.exe / ManualRAG.app — they check Ollama, pull the model
+# if missing, mount data/, and open the UI.
 
 services:
   manual-rag:
@@ -18,13 +23,15 @@ services:
     container_name: manual-rag-edge
     ports:
       - "${API_PORT:-8000}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ${HOST_DATA_DIR:-./data}:/app/data
     environment:
       - MANUAL_RAG_IN_DOCKER=1
-      - OLLAMA_BASE_URL=http://127.0.0.1:11434
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-qwen2.5vl:3b}
-      # 8GB edge profile
+      # 8GB edge profile — query only; VLM on host
       - QUERY_ONLY=true
       - ENABLE_RERANKER=false
       - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-8192}
@@ -46,4 +53,4 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 180s
+      start_period: 120s

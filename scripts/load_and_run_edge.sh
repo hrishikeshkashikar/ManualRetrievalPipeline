@@ -1,6 +1,6 @@
 #!/bin/bash
 # ══════════════════════════════════════════════════════════════════════════
-#  load_and_run_edge.sh — Load query-only image and start on an edge host
+#  load_and_run_edge.sh — Load thin query image + ensure host Ollama
 #
 #  Usage:
 #    ./load_and_run_edge.sh --image ./manual-rag-query.tar.gz --data /path/to/data
@@ -13,6 +13,7 @@ DATA_PATH="./data"
 HOST_PORT="8000"
 COMPOSE_FILE="docker-compose.edge.yml"
 IMAGE_TAG="manual-rag-query:latest"
+VISION_MODEL="${OLLAMA_VISION_MODEL:-qwen2.5vl:3b}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -35,6 +36,7 @@ echo ""
 echo "  Image file   : ${IMAGE_FILE}"
 echo "  Data path    : ${DATA_PATH}"
 echo "  UI port      : ${HOST_PORT}"
+echo "  Vision model : ${VISION_MODEL} (host Ollama)"
 echo ""
 
 if ! command -v docker &>/dev/null; then
@@ -42,9 +44,41 @@ if ! command -v docker &>/dev/null; then
   exit 1
 fi
 
-if [ ! -f "${IMAGE_FILE}" ]; then
-  echo "✗ Image file not found: ${IMAGE_FILE}"
+if ! docker info &>/dev/null; then
+  echo "✗ Docker daemon is not running. Start Docker and try again."
   exit 1
+fi
+
+if ! command -v ollama &>/dev/null; then
+  echo "✗ Ollama not found. Install once (needs internet):"
+  echo "    https://ollama.com/download"
+  exit 1
+fi
+
+# Ensure Ollama API is up
+if ! curl -sf "http://127.0.0.1:11434/api/tags" >/dev/null 2>&1; then
+  echo "▸ Starting ollama serve..."
+  ollama serve >/dev/null 2>&1 &
+  for i in $(seq 1 30); do
+    if curl -sf "http://127.0.0.1:11434/api/tags" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done
+fi
+
+if ! curl -sf "http://127.0.0.1:11434/api/tags" >/dev/null 2>&1; then
+  echo "✗ Ollama is not responding at http://127.0.0.1:11434"
+  echo "  Open the Ollama app, then retry."
+  exit 1
+fi
+
+if ! ollama list 2>/dev/null | grep -q "${VISION_MODEL}"; then
+  echo "▸ Model ${VISION_MODEL} missing — pulling (one-time; needs internet)..."
+  ollama pull "${VISION_MODEL}"
+  echo "  ✓ Model ready — later runs can be air-gapped"
+else
+  echo "  ✓ Host model ${VISION_MODEL} present"
 fi
 
 if [ ! -f "${COMPOSE_FILE}" ]; then
@@ -53,9 +87,15 @@ if [ ! -f "${COMPOSE_FILE}" ]; then
   exit 1
 fi
 
-echo "▸ Loading image from ${IMAGE_FILE}..."
-docker load < "${IMAGE_FILE}"
-echo ""
+if ! docker image inspect "${IMAGE_TAG}" >/dev/null 2>&1; then
+  if [ ! -f "${IMAGE_FILE}" ]; then
+    echo "✗ Image ${IMAGE_TAG} not loaded and file missing: ${IMAGE_FILE}"
+    exit 1
+  fi
+  echo "▸ Loading image from ${IMAGE_FILE}..."
+  docker load < "${IMAGE_FILE}"
+  echo ""
+fi
 
 # Resolve absolute data path
 if [[ "${DATA_PATH}" != /* ]]; then
@@ -69,6 +109,7 @@ mkdir -p \
 export HOST_DATA_DIR="${DATA_PATH}"
 export API_PORT="${HOST_PORT}"
 export EDGE_IMAGE="${IMAGE_TAG}"
+export OLLAMA_VISION_MODEL="${VISION_MODEL}"
 
 # OS-safe host mirrors (only paths that exist)
 OVERRIDE="docker-compose.edge.override.yml"
@@ -98,7 +139,7 @@ OVERRIDE="docker-compose.edge.override.yml"
 echo "  ✓ Wrote ${OVERRIDE}"
 echo ""
 
-echo "▸ Starting edge stack (query-only, 8GB profile)..."
+echo "▸ Starting edge stack (query-only, host Ollama)..."
 docker compose -f "${COMPOSE_FILE}" -f "${OVERRIDE}" up -d
 
 echo ""
@@ -122,6 +163,7 @@ echo ""
 echo "  Web UI   : http://localhost:${HOST_PORT}"
 echo "  Health   : http://localhost:${HOST_PORT}/health"
 echo "  Data     : ${HOST_DATA_DIR}"
+echo "  Ollama   : host @ 11434 (${VISION_MODEL})"
 echo ""
 echo "  Stop: docker compose -f ${COMPOSE_FILE} -f ${OVERRIDE} down"
 echo ""

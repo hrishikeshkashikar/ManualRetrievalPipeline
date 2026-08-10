@@ -1,0 +1,107 @@
+# ══════════════════════════════════════════════════════════════════════════
+#  Machine Manual RAG — Thin EDGE query-only image
+#
+#  • No Ollama / vision model baked in (use host Ollama)
+#  • Embedding model baked for offline retrieval
+#  • No reranker, no PDF ingest deps
+#  • Mount prebuilt data/ at runtime via docker-compose.edge.yml
+#
+#  Build:
+#    ./scripts/build.sh --edge
+#    docker build -f Dockerfile.edge -t manual-rag-query:latest .
+# ══════════════════════════════════════════════════════════════════════════
+
+ARG PYTHON_VERSION=3.11
+ARG EMBEDDING_MODEL=BAAI/bge-base-en-v1.5
+
+# ── Stage 1: download embedding weights only ───────────────────────────────
+FROM python:${PYTHON_VERSION}-slim AS hf-downloader
+
+ARG EMBEDDING_MODEL
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Current transformers needs torch>=2.4; pin numpy<2 for ABI stability with torch wheels.
+RUN pip install --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pypi.org/simple \
+    "numpy>=1.26,<2" \
+    torch==2.5.1 \
+ && pip install --no-cache-dir \
+    "sentence-transformers>=3.0.0,<4.0.0"
+
+ENV HF_HOME=/opt/hf_models
+
+RUN printf '%s\n' \
+    'import os' \
+    'from sentence_transformers import SentenceTransformer' \
+    'model_name = os.environ["EMBEDDING_MODEL"]' \
+    'print(f"Downloading embedding model: {model_name}")' \
+    'model = SentenceTransformer(model_name)' \
+    'dim = model.get_sentence_embedding_dimension()' \
+    'print(f"Embedding model ready — dimension: {dim}")' \
+    > /tmp/download_embedding.py
+
+RUN EMBEDDING_MODEL="${EMBEDDING_MODEL}" python /tmp/download_embedding.py
+
+# ── Stage 2: runtime (uvicorn only) ────────────────────────────────────────
+FROM python:${PYTHON_VERSION}-slim AS runtime
+
+ARG EMBEDDING_MODEL
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.edge.txt .
+
+# Install CPU torch first, then the rest from PyPI (do not use pytorch index for all pkgs).
+RUN pip install --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pypi.org/simple \
+    "numpy>=1.26,<2" \
+    torch==2.5.1 \
+ && pip install --no-cache-dir -r requirements.edge.txt
+
+COPY --from=hf-downloader /opt/hf_models /opt/hf_models
+
+COPY app/ ./app/
+COPY frontend/ ./frontend/
+
+RUN mkdir -p /app/data/chroma_db /app/data/images /app/data/manuals
+
+LABEL org.opencontainers.image.title="Manual RAG Pipeline (Edge Query-Only)" \
+      org.opencontainers.image.description="Thin query-only image; host Ollama for VLM; mount data/" \
+      org.opencontainers.image.version="1.0.0-edge" \
+      manual-rag.profile="edge-query" \
+      manual-rag.embedding-model="${EMBEDDING_MODEL}" \
+      manual-rag.host-ollama="true"
+
+ENV HF_HOME=/opt/hf_models \
+    HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1 \
+    MANUAL_RAG_IN_DOCKER=1 \
+    QUERY_ONLY=true \
+    ENABLE_RERANKER=false \
+    OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+    OLLAMA_VISION_MODEL=qwen2.5vl:3b \
+    OLLAMA_NUM_CTX=8192 \
+    MAX_GENERATION_IMAGES=1 \
+    EMBEDDING_MODEL_NAME=${EMBEDDING_MODEL} \
+    DATA_DIR=/app/data \
+    CHROMA_PERSIST_DIR=/app/data/chroma_db \
+    IMAGE_STORE_DIR=/app/data/images \
+    MANUAL_STORE_DIR=/app/data/manuals \
+    HOST=0.0.0.0 \
+    PORT=8000
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=5 \
+    CMD curl -fsS http://127.0.0.1:8000/health || exit 1
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

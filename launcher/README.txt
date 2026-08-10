@@ -3,7 +3,7 @@ Manual RAG — Launchers
 
 Windows
 -------
-ManualRAG.exe   Thin double-click launcher (requires Docker Desktop)
+ManualRAG.exe   Thin double-click launcher (Docker + host Ollama)
 ManualRAG.bat   Same flow without compiling
 ManualRAG.ps1   PowerShell variant
 
@@ -23,9 +23,14 @@ Build DMG:
 Boss / edge experience
 ----------------------
 1. Install Docker Desktop once
-2. Double-click ManualRAG.exe (Windows) or ManualRAG.app (macOS from DMG)
-3. Enter / pick the prebuilt data/ folder
-4. Browser opens http://localhost:8000/
+2. Install Ollama once (https://ollama.com/download)
+3. Double-click ManualRAG.exe (Windows) or ManualRAG.app (macOS from DMG)
+   — first run pulls qwen2.5vl:3b if missing (needs internet once)
+4. Enter / pick the prebuilt data/ folder
+5. Browser opens http://localhost:8000/
+
+After the model pull, the machine can stay air-gapped.
 
 Place docker-compose.edge.yml (and optionally manual-rag-query.tar.gz)
-next to the launcher in the edge bundle.
+next to the launcher in the edge bundle. The vision model is NOT inside
+the Docker tar — it lives in host Ollama.

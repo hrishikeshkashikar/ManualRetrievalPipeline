@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Package the query-only edge image + launcher for boss / edge machine.
+# Package the thin query-only edge image + launcher for boss / edge machine.
+# Vision model is NOT in the tar — host Ollama pulls it once (needs internet).
+# data/ is always mounted at runtime (never baked into the image).
 #
 # Usage:
 #   ./scripts/export_for_edge.sh
@@ -19,7 +21,7 @@ while [[ $# -gt 0 ]]; do
     --image) IMAGE_TAG="$2"; shift 2 ;;
     --with-data) DATA_SRC="$2"; shift 2 ;;
     --out) OUT_DIR="$2"; shift 2 ;;
-    --help|-h) sed -n '2,10p' "$0"; exit 0 ;;
+    --help|-h) sed -n '2,12p' "$0"; exit 0 ;;
     *) echo "Unknown: $1" >&2; exit 1 ;;
   esac
 done
@@ -30,18 +32,22 @@ if ! docker image inspect "$IMAGE_TAG" >/dev/null 2>&1; then
   exit 1
 fi
 
+IMAGE_SIZE=$(docker image inspect "$IMAGE_TAG" --format='{{.Size}}' | awk '{printf "%.2f GB", $1/1073741824}')
+
 mkdir -p "$OUT_DIR"
 TAR="$OUT_DIR/manual-rag-query.tar.gz"
 
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║  Export edge / boss bundle                               ║"
+echo "║  Export edge / boss bundle (thin + host Ollama)          ║"
 echo "╚══════════════════════════════════════════════════════════╝"
-echo "  Image : $IMAGE_TAG"
+echo "  Image : $IMAGE_TAG ($IMAGE_SIZE)"
 echo "  Out   : $OUT_DIR"
 echo ""
 
-echo "▸ Saving image (several minutes)..."
+echo "▸ Saving image..."
 docker save "$IMAGE_TAG" | gzip -1 > "$TAR"
+TAR_SIZE=$(du -h "$TAR" | awk '{print $1}')
+echo "  ✓ $TAR ($TAR_SIZE compressed)"
 
 cp docker-compose.edge.yml "$OUT_DIR/"
 cp scripts/load_and_run_edge.sh "$OUT_DIR/"
@@ -51,7 +57,6 @@ mkdir -p "$OUT_DIR/launcher"
 cp launcher/ManualRAG.bat "$OUT_DIR/launcher/" 2>/dev/null || true
 cp launcher/ManualRAG.ps1 "$OUT_DIR/launcher/" 2>/dev/null || true
 cp launcher/README.txt "$OUT_DIR/launcher/" 2>/dev/null || true
-# Prefer a prebuilt exe if present — also copy bat to bundle root for double-click
 if [[ -f launcher/ManualRAG.exe ]]; then
   cp launcher/ManualRAG.exe "$OUT_DIR/"
 fi
@@ -65,7 +70,7 @@ if [[ -d launcher/ManualRAG.app ]]; then
 fi
 
 if [[ -n "$DATA_SRC" ]]; then
-  echo "▸ Copying sample data from $DATA_SRC ..."
+  echo "▸ Copying sample data from $DATA_SRC (separate from image)..."
   mkdir -p "$OUT_DIR/sample-data"
   rsync -a --delete \
     --exclude '.DS_Store' \
@@ -79,13 +84,18 @@ Manual RAG — Edge Query-Only (Windows / macOS / low RAM)
 
 What this is
 ------------
-Query-only deployment for ~8 GB RAM machines.
+Thin Docker app for query-only use on ~8 GB RAM machines.
+The vision model runs on host Ollama (faster, uses CPU/GPU natively).
 Ingest PDFs on a stronger PC first, then copy the data/ folder here.
 
-One-time setup
---------------
+One-time setup (needs internet once)
+------------------------------------
 1) Install Docker Desktop and start it.
    https://www.docker.com/products/docker-desktop/
+2) Install Ollama and start it.
+   https://ollama.com/download
+3) First launch will pull qwen2.5vl:3b if missing.
+   After that, the PC can stay air-gapped.
 
 Every time
 ----------
@@ -101,14 +111,15 @@ Option B — macOS:
   2. First time: Right-click ManualRAG.app → Open → Open.
   3. Pick your data folder in the macOS dialog.
   4. Browser opens at http://localhost:8000/
-  Keep docker-compose.edge.yml next to the .app (already true in this bundle).
+  Keep docker-compose.edge.yml next to the .app.
 
 Option C — Command line:
   ./load_and_run_edge.sh --image manual-rag-query.tar.gz --data /path/to/data
 
 Notes
 -----
-- First start loads the image (can take several minutes) if not already loaded.
+- The Docker image does NOT include the vision model or your data/.
+- data/ is always mounted from a path you choose.
 - No ingest on this machine — Upload is hidden in the UI.
 - Stop: docker compose -f docker-compose.edge.yml down
 EOF
@@ -118,3 +129,7 @@ echo "✓ Bundle ready:"
 du -sh "$OUT_DIR"/* 2>/dev/null | sed 's/^/  /'
 echo ""
 echo "  $OUT_DIR"
+echo "  Image layer size (uncompressed): $IMAGE_SIZE"
+echo "  Tar compressed: $TAR_SIZE"
+echo ""
+echo "  Client still needs: Docker + Ollama + one-time model pull + data/ path"

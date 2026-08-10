@@ -2,7 +2,7 @@
 setlocal EnableExtensions EnableDelayedExpansion
 title Manual RAG — Edge Query Launcher
 
-REM Thin launcher: requires Docker Desktop once. Not a fat ML binary.
+REM Thin launcher: Docker + host Ollama. Vision model is NOT in the Docker image.
 REM Double-click this file (or ManualRAG.exe if built) on the edge PC.
 
 cd /d "%~dp0"
@@ -14,6 +14,7 @@ set "COMPOSE_FILE=docker-compose.edge.yml"
 set "IMAGE_TAR=manual-rag-query.tar.gz"
 set "IMAGE_TAG=manual-rag-query:latest"
 set "PORT=8000"
+set "VISION_MODEL=qwen2.5vl:3b"
 
 echo.
 echo  ========================================================
@@ -38,6 +39,50 @@ if errorlevel 1 (
   echo.
   pause
   exit /b 1
+)
+
+where ollama >nul 2>&1
+if errorlevel 1 (
+  echo  Ollama is not installed.
+  echo  Install once (needs internet), then re-run:
+  echo    https://ollama.com/download
+  echo.
+  pause
+  exit /b 1
+)
+
+curl -sf http://127.0.0.1:11434/api/tags >nul 2>&1
+if errorlevel 1 (
+  echo  Starting Ollama...
+  start "" /b ollama serve
+  set /a OWAIT=0
+  :ollama_wait
+  curl -sf http://127.0.0.1:11434/api/tags >nul 2>&1
+  if not errorlevel 1 goto ollama_ready
+  set /a OWAIT+=1
+  if %OWAIT% GEQ 30 (
+    echo  Ollama is not responding. Open the Ollama app and retry.
+    pause
+    exit /b 1
+  )
+  timeout /t 1 /nobreak >nul
+  goto ollama_wait
+)
+:ollama_ready
+echo  Ollama API ready.
+
+ollama list 2>nul | findstr /i "%VISION_MODEL%" >nul
+if errorlevel 1 (
+  echo  Pulling %VISION_MODEL% (one-time; needs internet)...
+  ollama pull %VISION_MODEL%
+  if errorlevel 1 (
+    echo  Failed to pull model. Connect to the internet once and retry.
+    pause
+    exit /b 1
+  )
+  echo  Model ready — later runs can be air-gapped.
+) else (
+  echo  Host model %VISION_MODEL% present.
 )
 
 if not exist "%COMPOSE_FILE%" (
@@ -96,6 +141,7 @@ if errorlevel 1 (
 set "HOST_DATA_DIR=%DATA_DIR%"
 set "API_PORT=%PORT%"
 set "EDGE_IMAGE=%IMAGE_TAG%"
+set "OLLAMA_VISION_MODEL=%VISION_MODEL%"
 
 echo  Starting query-only container...
 docker compose -f "%COMPOSE_FILE%" up -d

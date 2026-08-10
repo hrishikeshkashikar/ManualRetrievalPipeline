@@ -1,30 +1,27 @@
 #!/bin/bash
 # ══════════════════════════════════════════════════════════════════════════
-#  build.sh — Build the self-contained Manual RAG Docker image
+#  build.sh — Build Manual RAG Docker images
 #
-#  All models (Ollama vision + HuggingFace embedding + reranker) are
-#  downloaded and baked into the image during this build.
+#  Full image (default): Ollama + vision + embedding + reranker baked in.
+#  Edge image (--edge): thin query-only API; host Ollama for the VLM.
 #
-#  IMPORTANT: Run this on a machine WITH internet access.
-#             The resulting image is fully offline / air-gapped.
+#  IMPORTANT: Run on a machine WITH internet access.
 #
 #  Usage:
 #    ./scripts/build.sh [OPTIONS]
 #
 #  Options:
-#    --model    <tag>   Ollama vision model to bake in (default: qwen2.5vl:3b)
+#    --model    <tag>   Ollama vision model (full image only; default: qwen2.5vl:3b)
 #    --tag      <tag>   Docker image tag (default: manual-rag:latest)
-#    --edge             Build/tag for 8GB query-only edge (default tag: manual-rag-query:latest)
+#    --edge             Thin query-only image (default tag: manual-rag-query:latest)
 #    --export           Export image to tar.gz after build
-#    --no-cache         Force a clean rebuild (no Docker layer cache)
+#    --no-cache         Force a clean rebuild
 #    --help             Show this help
 #
 #  Examples:
 #    ./scripts/build.sh
-#    ./scripts/build.sh --model qwen2.5vl:3b --tag manual-rag:3b
 #    ./scripts/build.sh --edge --export
 #    ./scripts/build.sh --model qwen2.5vl:7b --export
-#    ./scripts/build.sh --model llama3.2-vision:11b --tag manual-rag:11b --export
 # ══════════════════════════════════════════════════════════════════════════
 
 set -euo pipefail
@@ -45,7 +42,7 @@ while [[ $# -gt 0 ]]; do
     --export)  DO_EXPORT=true;    shift   ;;
     --no-cache) NO_CACHE="--no-cache"; shift ;;
     --help)
-      sed -n '2,32p' "$0"
+      sed -n '2,28p' "$0"
       exit 0
       ;;
     *) echo "Unknown option: $1"; exit 1 ;;
@@ -61,9 +58,9 @@ echo "╔═══════════════════════�
 echo "║  Manual RAG — Docker Image Build                        ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
-echo "  Vision Model  : ${VISION_MODEL}"
+echo "  Profile       : $([ "$EDGE_BUILD" = true ] && echo "EDGE query-only (host Ollama)" || echo "FULL offline")"
+echo "  Vision Model  : ${VISION_MODEL}$([ "$EDGE_BUILD" = true ] && echo " (host — not baked)" || echo "")"
 echo "  Image Tag     : ${IMAGE_TAG}"
-echo "  Edge profile  : ${EDGE_BUILD}"
 echo "  Export        : ${DO_EXPORT}"
 echo ""
 
@@ -77,13 +74,15 @@ if ! docker info &>/dev/null; then
   exit 1
 fi
 
-# Warn about image size
-echo "  ⚠ This build downloads and bakes in all models."
-echo "    Estimated time : 10–30 min (depending on download speed)"
-echo "    Estimated size : 8–10 GB (depending on vision model)"
 if [ "$EDGE_BUILD" = true ]; then
-  echo "    Edge note      : same image runtime; use docker-compose.edge.yml"
-  echo "                     (QUERY_ONLY + low RAM env) on the target host."
+  echo "  Edge image bakes embedding weights only (no Ollama/VLM/reranker)."
+  echo "  Estimated size : ~1.5–3 GB (vs ~8–11 GB full image)"
+  echo "  Target host    : install Ollama once + ollama pull ${VISION_MODEL}"
+  echo "  Data           : always mount HOST_DATA_DIR (never baked in)"
+else
+  echo "  ⚠ Full build downloads and bakes in all models."
+  echo "    Estimated time : 10–30 min (depending on download speed)"
+  echo "    Estimated size : 8–11 GB (depending on vision model)"
 fi
 echo ""
 echo "  Press Ctrl+C within 5 seconds to cancel..."
@@ -92,23 +91,31 @@ echo ""
 
 # ── Build ──────────────────────────────────────────────────────────────────
 echo "▸ Building image: ${IMAGE_TAG}"
-echo "  Using vision model: ${VISION_MODEL}"
 echo ""
 
 BUILD_START=$(date +%s)
 
-docker build \
-  ${NO_CACHE} \
-  --build-arg VISION_MODEL="${VISION_MODEL}" \
-  --build-arg EMBEDDING_MODEL="BAAI/bge-base-en-v1.5" \
-  --build-arg RERANKER_MODEL="BAAI/bge-reranker-v2-m3" \
-  --tag "${IMAGE_TAG}" \
-  --file Dockerfile \
-  .
+if [ "$EDGE_BUILD" = true ]; then
+  docker build \
+    ${NO_CACHE} \
+    --build-arg EMBEDDING_MODEL="BAAI/bge-base-en-v1.5" \
+    --tag "${IMAGE_TAG}" \
+    --file Dockerfile.edge \
+    .
+else
+  docker build \
+    ${NO_CACHE} \
+    --build-arg VISION_MODEL="${VISION_MODEL}" \
+    --build-arg EMBEDDING_MODEL="BAAI/bge-base-en-v1.5" \
+    --build-arg RERANKER_MODEL="BAAI/bge-reranker-v2-m3" \
+    --tag "${IMAGE_TAG}" \
+    --file Dockerfile \
+    .
+fi
 
 BUILD_END=$(date +%s)
 BUILD_TIME=$((BUILD_END - BUILD_START))
-BUILD_SIZE=$(docker image inspect "${IMAGE_TAG}" --format='{{.Size}}' | awk '{printf "%.1f GB", $1/1073741824}')
+BUILD_SIZE=$(docker image inspect "${IMAGE_TAG}" --format='{{.Size}}' | awk '{printf "%.2f GB", $1/1073741824}')
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
@@ -131,7 +138,8 @@ if [ "$DO_EXPORT" = true ]; then
 fi
 
 if [ "$EDGE_BUILD" = true ]; then
-  echo "▸ Edge deploy:"
+  echo "▸ Edge deploy (host Ollama + mount data/):"
+  echo "    # once online: ollama pull ${VISION_MODEL}"
   echo "    HOST_DATA_DIR=/path/to/data docker compose -f docker-compose.edge.yml up -d"
   echo "    # or: ./scripts/load_and_run_edge.sh --data /path/to/data"
 else
@@ -139,6 +147,6 @@ else
   echo "    docker compose up -d"
 fi
 echo ""
-echo "▸ To export for air-gapped deployment:"
+echo "▸ To export for air-gapped transfer:"
 echo "    ./scripts/export_image.sh --image ${IMAGE_TAG}"
 echo ""

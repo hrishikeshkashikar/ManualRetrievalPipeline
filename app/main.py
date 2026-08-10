@@ -10,6 +10,7 @@ import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,11 +20,13 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.core.embedder import Embedder
 from app.core.generator import Generator
-from app.core.pdf_processor import PDFProcessor
 from app.core.rag_pipeline import RAGPipeline
 from app.core.reranker import Reranker
 from app.core.vector_store import VectorStore
 from app.core.vision_captioner import VisionCaptioner
+
+if TYPE_CHECKING:
+    from app.core.pdf_processor import PDFProcessor
 
 # ── Logging ─────────────────────────────────────────────────────────────────
 
@@ -47,7 +50,7 @@ class AppState:
     globally via the `app_state` module-level variable.
     """
 
-    pdf_processor: PDFProcessor | None = None
+    pdf_processor: "PDFProcessor | None" = None
     vision_captioner: VisionCaptioner = field(default_factory=VisionCaptioner)
     embedder: Embedder = field(default_factory=Embedder)
     vector_store: VectorStore = field(default_factory=VectorStore)
@@ -94,13 +97,16 @@ async def lifespan(app: FastAPI):
     )
     logger.info("=" * 60)
 
-    # PDF processor only needed for ingest
+    # PDF processor only needed for ingest (lazy import — edge image omits PyMuPDF)
     if not settings.query_only:
+        from app.core.pdf_processor import PDFProcessor
+
         app_state.pdf_processor = PDFProcessor()
     else:
         app_state.pdf_processor = None
 
-    # Auto-mount default DATA_DIR when present (Docker: /app/data volume)
+    # Auto-mount default DATA_DIR when present (Docker: /app/data volume).
+    # Catch BaseException too — Chroma rust bindings can raise PanicException.
     default_dir = settings.data_dir
     try:
         default_dir.mkdir(parents=True, exist_ok=True)
@@ -110,9 +116,12 @@ async def lifespan(app: FastAPI):
         app_state.current_mount_path = str(default_dir.resolve())
         app_state.resolved_mount_path = str(default_dir.resolve())
         logger.info("Default vector store ready")
-    except Exception as e:
+    except BaseException as e:
         logger.warning("Failed to auto-initialize default data path: %s", e)
         logger.info("App starting in UNMOUNTED state — set a path from the UI.")
+        app_state.vector_store = VectorStore()
+        app_state.current_mount_path = None
+        app_state.resolved_mount_path = None
 
     # Load embedding model
     logger.info("Loading embedding model...")
