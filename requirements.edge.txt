@@ -6,8 +6,10 @@ fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 python-multipart>=0.0.9
 
-# Images served / attached at query time (no PDF ingest)
+# Images / PDF helpers (query UI may serve pages; keep fitz available so
+# accidental imports of pdf_processor never crash the edge container)
 Pillow>=10.0.0
+PyMuPDF>=1.24.0
 
 # Embeddings (CPU torch + numpy pinned in Dockerfile.edge for ABI compatibility)
 # Cap ST <4 so we don't pull bleeding-edge transformers that break the pin.

@@ -14,8 +14,8 @@ import io
 import logging
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import fitz  # PyMuPDF
 from PIL import Image
 
 from app.config import settings
@@ -23,7 +23,22 @@ from app.models.schemas import DocumentChunk
 from app.utils.image_utils import save_image
 from app.utils.path_utils import to_relative_image_path
 
+if TYPE_CHECKING:
+    import fitz
+
 logger = logging.getLogger(__name__)
+
+
+def _fitz():
+    """Lazy import so query-only images can omit PyMuPDF until ingest is used."""
+    try:
+        import fitz
+    except ModuleNotFoundError as e:
+        raise RuntimeError(
+            "PyMuPDF (fitz) is required for PDF ingest. "
+            "Install PyMuPDF or use a full (non-edge) image."
+        ) from e
+    return fitz
 
 
 class PDFProcessor:
@@ -63,6 +78,7 @@ class PDFProcessor:
               - List of image info dicts with keys: path, page_number, image_index, type
         """
         logger.info(f"Processing PDF: {filepath.name} (manual_id={manual_id})")
+        fitz = _fitz()
         doc = fitz.open(str(filepath))
 
         all_chunks: list[DocumentChunk] = []
@@ -207,8 +223,9 @@ class PDFProcessor:
 
         return chunks
 
-    def _render_page(self, page: fitz.Page, output_dir: Path, page_num: int) -> Path:
+    def _render_page(self, page: "fitz.Page", output_dir: Path, page_num: int) -> Path:
         """Render a PDF page to a PNG image at configured DPI."""
+        fitz = _fitz()
         zoom = self.render_dpi / 72  # 72 is the default DPI
         matrix = fitz.Matrix(zoom, zoom)
         pixmap = page.get_pixmap(matrix=matrix)
@@ -222,8 +239,8 @@ class PDFProcessor:
 
     def _extract_images(
         self,
-        doc: fitz.Document,
-        page: fitz.Page,
+        doc: "fitz.Document",
+        page: "fitz.Page",
         output_dir: Path,
         page_num: int,
     ) -> list[dict]:
@@ -279,6 +296,7 @@ class PDFProcessor:
 
     def get_page_count(self, filepath: Path) -> int:
         """Get the number of pages in a PDF without full processing."""
+        fitz = _fitz()
         doc = fitz.open(str(filepath))
         count = len(doc)
         doc.close()
