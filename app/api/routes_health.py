@@ -187,4 +187,5 @@ async def health_check() -> HealthResponse:
         total_chunks=total_chunks,
         query_only=settings.query_only,
         reranker_enabled=settings.enable_reranker,
+        auth_enabled=settings.auth_enabled,
     )

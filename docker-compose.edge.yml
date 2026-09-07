@@ -47,6 +47,11 @@ services:
       - MANUAL_STORE_DIR=/app/data/manuals
       - EMBEDDING_MODEL_NAME=${EMBEDDING_MODEL_NAME:-BAAI/bge-base-en-v1.5}
       - HOST_DATA_DIR=${HOST_DATA_DIR:-./data}
+      - AUTH_ENABLED=${AUTH_ENABLED:-true}
+      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-admin}
+      - AUTH_STORE_PATH=/app/data/users.json
+      - AUTH_ALLOW_REGISTER=${AUTH_ALLOW_REGISTER:-true}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]

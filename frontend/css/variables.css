@@ -110,4 +110,69 @@
   --source-panel-width:  380px;
   --header-height:       0px;
   --chat-max-width:      820px;
+
+  /* Alias used by overlays / folder browser */
+  --bg-deep: var(--bg-primary);
+
+  /* Overlay stacking — keep login > lightbox > modal > source > chrome */
+  --z-sidebar: 20;
+  --z-source-panel: 50;
+  --z-modal: 200;
+  --z-lightbox: 260;
+  --z-login: 320;
+  --z-toast: 400;
+
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg-primary:     hsl(220, 20%, 97%);
+  --bg-secondary:   hsl(220, 18%, 94%);
+  --bg-tertiary:    hsl(220, 16%, 91%);
+  --bg-elevated:    hsl(0, 0%, 100%);
+  --bg-hover:       hsl(220, 16%, 88%);
+
+  --surface-glass:        hsla(0, 0%, 100%, 0.72);
+  --surface-glass-hover:  hsla(0, 0%, 100%, 0.9);
+  --surface-glass-border: hsla(225, 20%, 20%, 0.1);
+  --surface-glass-border-hover: hsla(225, 20%, 20%, 0.18);
+
+  --accent-primary:       hsl(175, 72%, 32%);
+  --accent-primary-dim:   hsl(175, 60%, 28%);
+  --accent-primary-glow:  hsla(175, 72%, 32%, 0.18);
+  --accent-primary-bg:    hsla(175, 72%, 32%, 0.1);
+
+  --accent-secondary:       hsl(260, 55%, 48%);
+  --accent-secondary-dim:   hsl(260, 45%, 40%);
+  --accent-secondary-glow:  hsla(260, 55%, 48%, 0.16);
+  --accent-secondary-bg:    hsla(260, 55%, 48%, 0.08);
+
+  --color-danger:       hsl(0, 72%, 46%);
+  --color-danger-bg:    hsla(0, 72%, 46%, 0.1);
+  --color-danger-border:hsla(0, 72%, 46%, 0.28);
+
+  --color-warning:       hsl(38, 90%, 42%);
+  --color-warning-bg:    hsla(38, 90%, 42%, 0.1);
+  --color-warning-border:hsla(38, 90%, 42%, 0.28);
+
+  --color-success:       hsl(155, 60%, 32%);
+  --color-success-bg:    hsla(155, 60%, 32%, 0.1);
+  --color-success-border:hsla(155, 60%, 32%, 0.28);
+
+  --color-info:       hsl(210, 75%, 42%);
+  --color-info-bg:    hsla(210, 75%, 42%, 0.1);
+  --color-info-border:hsla(210, 75%, 42%, 0.28);
+
+  --text-primary:     hsl(225, 25%, 12%);
+  --text-secondary:   hsl(220, 12%, 38%);
+  --text-tertiary:    hsl(220, 10%, 52%);
+  --text-inverse:     hsl(0, 0%, 100%);
+
+  --shadow-sm:  0 1px 3px hsla(225, 20%, 20%, 0.08), 0 1px 2px hsla(225, 20%, 20%, 0.06);
+  --shadow-md:  0 4px 12px hsla(225, 20%, 20%, 0.1), 0 2px 4px hsla(225, 20%, 20%, 0.06);
+  --shadow-lg:  0 10px 30px hsla(225, 20%, 20%, 0.12), 0 4px 10px hsla(225, 20%, 20%, 0.08);
+  --shadow-xl:  0 20px 50px hsla(225, 20%, 20%, 0.16), 0 8px 20px hsla(225, 20%, 20%, 0.1);
+
+  --bg-deep: var(--bg-secondary);
+  color-scheme: light;
 }

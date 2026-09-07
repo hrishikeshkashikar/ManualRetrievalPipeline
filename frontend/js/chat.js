@@ -601,13 +601,13 @@ class ChatInterface {
       <div class="card card-compact">
         <div style="font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-3);">Page Image</div>
         <div style="border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--surface-glass-border); background: var(--bg-primary);">
-          <img src="${(() => {
+          <img class="source-page-image" src="${(() => {
             const p = source.page_image_path;
             if (!p) return '';
             if (p.startsWith('http')) return p;
             if (p.startsWith('/')) return `${api.baseUrl}${p}`;
             return `${api.baseUrl}/${p}`;
-          })()}" alt="Page ${source.page_number}" style="width: 100%; height: auto; display: block;" onerror="this.parentElement.innerHTML='<div style=padding:var(--space-6);text-align:center;color:var(--text-tertiary);font-size:var(--text-sm)>Image not available</div>'" />
+          })()}" alt="Page ${source.page_number}" style="width: 100%; height: auto; display: block;" onclick="lightbox.open(this.src)" onerror="this.parentElement.innerHTML='<div style=padding:var(--space-6);text-align:center;color:var(--text-tertiary);font-size:var(--text-sm)>Image not available</div>'" />
         </div>
       </div>
     ` : '';

@@ -11,6 +11,27 @@ class ApiClient {
     const isLocalFile = window.location.protocol === 'file:';
     const serverUrl = 'http://localhost:8000';
     this.baseUrl = (isLocalFile ? serverUrl : window.location.origin).replace(/\/+$/, '');
+    this.token = '';
+    try {
+      this.token = localStorage.getItem('mr-token') || '';
+    } catch {
+      this.token = '';
+    }
+  }
+
+  setToken(token) {
+    this.token = token || '';
+    try {
+      if (this.token) localStorage.setItem('mr-token', this.token);
+      else localStorage.removeItem('mr-token');
+    } catch {
+      /* ignore */
+    }
+  }
+
+  _authHeaders() {
+    if (!this.token) return {};
+    return { Authorization: `Bearer ${this.token}` };
   }
 
   // ── Internal helpers ──────────────────────────────────────────────
@@ -22,7 +43,7 @@ class ApiClient {
 
     const opts = {
       method,
-      headers: { ...headers },
+      headers: { ...this._authHeaders(), ...headers },
       signal: controller.signal,
     };
 
@@ -41,6 +62,9 @@ class ApiClient {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const message = errorData.detail || `HTTP ${response.status}: ${response.statusText}`;
+        if (response.status === 401 && !path.startsWith('/auth/login') && !path.startsWith('/auth/register')) {
+          document.dispatchEvent(new CustomEvent('auth-required'));
+        }
         if (message === 'UNMOUNTED') {
           document.dispatchEvent(new CustomEvent('unmounted-state'));
         }
@@ -56,6 +80,24 @@ class ApiClient {
       }
       throw new ApiError(`Network error: ${err.message}`, 0);
     }
+  }
+
+  // ── Auth ──────────────────────────────────────────────────────────
+
+  async getAuthStatus() {
+    return this._request('GET', '/auth/status');
+  }
+
+  async login(username, password) {
+    return this._request('POST', '/auth/login', { body: { username, password } });
+  }
+
+  async register(username, password) {
+    return this._request('POST', '/auth/register', { body: { username, password } });
+  }
+
+  async getMe() {
+    return this._request('GET', '/auth/me');
   }
 
   // ── Health ────────────────────────────────────────────────────────
@@ -126,7 +168,7 @@ class ApiClient {
     try {
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this._authHeaders() },
         body: JSON.stringify(request),
         signal,
       });
@@ -134,6 +176,9 @@ class ApiClient {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const message = errorData.detail || `HTTP ${response.status}`;
+        if (response.status === 401) {
+          document.dispatchEvent(new CustomEvent('auth-required'));
+        }
         if (message === 'UNMOUNTED') {
           document.dispatchEvent(new CustomEvent('unmounted-state'));
         }

@@ -7,12 +7,22 @@
   <meta name="description" content="AI-powered machine manual diagnosis. Upload PDF manuals and get structured diagnostic responses with issue identification, solutions, and safety warnings." />
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="css/variables.css" />
-  <link rel="stylesheet" href="css/base.css" />
-  <link rel="stylesheet" href="css/animations.css" />
-  <link rel="stylesheet" href="css/layout.css" />
-  <link rel="stylesheet" href="css/components.css" />
-  <link rel="stylesheet" href="css/chat.css?v=2" />
+  <link rel="stylesheet" href="css/variables.css?v=5" />
+  <link rel="stylesheet" href="css/base.css?v=5" />
+  <link rel="stylesheet" href="css/animations.css?v=5" />
+  <link rel="stylesheet" href="css/layout.css?v=5" />
+  <link rel="stylesheet" href="css/components.css?v=5" />
+  <link rel="stylesheet" href="css/chat.css?v=5" />
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('mr-theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
 
   <!-- Inline upload dropzone styles (small, co-located) -->
   <style>
@@ -136,11 +146,21 @@
       </nav>
 
       <div class="sidebar-footer" style="flex-direction: column; align-items: stretch; gap: 8px; padding: var(--space-4);">
-        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-          <div class="sidebar-status" id="sidebar-status-bar" style="margin: 0;">
+        <div class="sidebar-user hidden" id="sidebar-user">
+          <span class="sidebar-user-name truncate" id="sidebar-user-name">Signed in</span>
+          <button type="button" class="icon-btn" id="logout-btn" title="Sign out">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;">
+          <div class="sidebar-status" id="sidebar-status-bar" style="margin: 0; flex: 1;">
             <span class="status-dot unknown" id="sidebar-status-dot"></span>
             <span class="status-label" id="sidebar-status-label">Connecting...</span>
           </div>
+          <button type="button" class="icon-btn" id="theme-toggle-btn" title="Toggle light / dark mode">
+            <svg class="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg class="theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          </button>
         </div>
         <button class="btn btn-secondary btn-xs" id="sidebar-change-mount-btn" style="width: 100%; font-size: 11px; padding: 6px 8px; justify-content: center; display: flex; align-items: center; gap: 6px;" title="Change knowledge-base folder">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px;"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></svg>
@@ -308,7 +328,7 @@
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- DYNAMIC MOUNT MODAL OVERLAY                                        -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <div class="modal-overlay hidden" id="mount-modal" style="z-index: 9999; backdrop-filter: blur(20px);">
+  <div class="modal-overlay hidden" id="mount-modal">
     <div class="modal" style="max-width: 560px;">
       <div class="modal-title">Select Data Folder</div>
       <div class="modal-body" style="display: flex; flex-direction: column; gap: var(--space-3);">
@@ -343,6 +363,71 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- IMAGE LIGHTBOX OVERLAY                                             -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay lightbox-overlay hidden" id="image-lightbox" role="dialog" aria-modal="true" aria-label="Page image">
+    <button type="button" class="icon-btn lightbox-close" id="lightbox-close-btn" title="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <img id="lightbox-img" alt="Manual page" />
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- LOGIN / REGISTER OVERLAY                                           -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="auth-overlay hidden" id="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-card-header">
+        <div class="auth-brand">
+          <h1>ManualRAG</h1>
+          <p>Sign in to the diagnostic assistant</p>
+        </div>
+        <button type="button" class="icon-btn" id="auth-theme-toggle-btn" title="Toggle light / dark mode">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+
+      <div class="auth-panel" id="auth-login-panel">
+        <form id="login-form" autocomplete="on">
+          <div class="auth-field">
+            <label for="login-username">Username</label>
+            <input type="text" id="login-username" name="username" autocomplete="username" required />
+          </div>
+          <div class="auth-field">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" name="password" autocomplete="current-password" required />
+          </div>
+          <div class="auth-error" id="login-error"></div>
+          <button type="submit" class="btn btn-primary" id="login-submit" style="width: 100%; justify-content: center;">Sign in</button>
+        </form>
+        <div class="auth-switch" id="login-switch">
+          Need an account?
+          <button type="button" id="show-register-btn">Create one</button>
+        </div>
+      </div>
+
+      <div class="auth-panel hidden" id="auth-register-panel">
+        <form id="register-form" autocomplete="on">
+          <div class="auth-field">
+            <label for="register-username">Username</label>
+            <input type="text" id="register-username" name="username" autocomplete="username" required />
+          </div>
+          <div class="auth-field">
+            <label for="register-password">Password</label>
+            <input type="password" id="register-password" name="password" autocomplete="new-password" minlength="4" required />
+          </div>
+          <div class="auth-error" id="register-error"></div>
+          <button type="submit" class="btn btn-primary" id="register-submit" style="width: 100%; justify-content: center;">Create account</button>
+        </form>
+        <div class="auth-switch">
+          Already have an account?
+          <button type="button" id="show-login-btn">Sign in</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- TOAST CONTAINER                                                    -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <div class="toast-container" id="toast-container"></div>
@@ -350,13 +435,14 @@
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- SCRIPTS (order matters: utils → api → modules → app)              -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <script src="js/utils.js?v=4"></script>
-  <script src="js/api.js?v=4"></script>
-  <script src="js/health.js?v=4"></script>
-  <script src="js/manuals.js?v=4"></script>
-  <script src="js/ingest.js?v=4"></script>
-  <script src="js/chat.js?v=4"></script>
-  <script src="js/app.js?v=4"></script>
+  <script src="js/utils.js?v=5"></script>
+  <script src="js/api.js?v=5"></script>
+  <script src="js/auth.js?v=5"></script>
+  <script src="js/health.js?v=5"></script>
+  <script src="js/manuals.js?v=5"></script>
+  <script src="js/ingest.js?v=5"></script>
+  <script src="js/chat.js?v=5"></script>
+  <script src="js/app.js?v=5"></script>
 
 </body>
 </html>

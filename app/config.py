@@ -57,6 +57,14 @@ class Settings(BaseSettings):
     page_render_dpi: int = 300  # DPI for rendering PDF pages to images
     max_generation_images: int = 4  # images attached to VLM generate calls
 
+    # ── Auth (offline local users — no Mongo / no internet) ────────────
+    auth_enabled: bool = True
+    auth_username: str = "admin"
+    auth_password: str = "admin"
+    auth_secret: str = "manual-rag-offline-secret"
+    auth_store_path: Path = Path("./data/users.json")
+    auth_allow_register: bool = True
+
     # ── Server ─────────────────────────────────────────────────────────
     host: str = "0.0.0.0"
     port: int = 8000

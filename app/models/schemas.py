@@ -190,6 +190,10 @@ class HealthResponse(BaseModel):
         default=True,
         description="Whether cross-encoder reranking is enabled in config",
     )
+    auth_enabled: bool = Field(
+        default=True,
+        description="Whether the UI/API require a local login",
+    )
 
 
 # ── Internal Data Models ────────────────────────────────────────────────────

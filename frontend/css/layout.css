@@ -29,7 +29,7 @@
   border-right: 1px solid var(--surface-glass-border);
   overflow: hidden;
   position: relative;
-  z-index: 20;
+  z-index: var(--z-sidebar);
 }
 
 .sidebar-header {
@@ -371,7 +371,7 @@
     top: 0;
     bottom: 0;
     width: min(380px, 90vw);
-    z-index: 50;
+    z-index: var(--z-source-panel);
     box-shadow: var(--shadow-xl);
   }
 }

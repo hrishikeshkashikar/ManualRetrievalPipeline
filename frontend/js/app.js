@@ -324,15 +324,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   window.applyQueryOnlyMode = applyQueryOnlyMode;
 
-  // Initial boot: check mount status first
-  mountManager.checkMountStatus().then((mounted) => {
-    api.getHealth().then((h) => {
-      applyQueryOnlyMode(h.query_only);
-    }).catch(() => {});
+  function startApp() {
+    mountManager.checkMountStatus().then((mounted) => {
+      api.getHealth().then((h) => {
+        applyQueryOnlyMode(h.query_only);
+      }).catch(() => {});
 
-    if (mounted) {
-      healthDashboard.refresh();
-      navigateTo('chat');
-    }
+      if (mounted) {
+        healthDashboard.refresh();
+        navigateTo('chat');
+      }
+    });
+  }
+
+  authManager.bind();
+  lightbox.bind();
+
+  authManager.boot().then((ok) => {
+    if (ok) startApp();
   });
+
+  document.addEventListener('auth-ready', () => startApp());
 });

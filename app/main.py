@@ -17,6 +17,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.auth.deps import AuthMiddleware
+
 from app.config import settings
 from app.core.embedder import Embedder
 from app.core.generator import Generator
@@ -161,6 +163,12 @@ async def lifespan(app: FastAPI):
     logger.info("  Pipeline ready — accepting requests")
     logger.info("=" * 60)
 
+    if settings.auth_enabled:
+        from app.auth.store import get_store
+
+        get_store()
+        logger.info("Offline auth enabled — local users at %s", settings.auth_store_path)
+
     yield
 
     # Shutdown
@@ -205,7 +213,10 @@ app.add_middleware(
 from app.api.routes_health import router as health_router
 from app.api.routes_ingest import router as ingest_router
 from app.api.routes_query import router as query_router
+from app.auth.router import router as auth_router
 
+app.add_middleware(AuthMiddleware)
+app.include_router(auth_router)
 app.include_router(health_router)
 app.include_router(ingest_router)  # list manuals always; write ops gated by query_only
 app.include_router(query_router)
