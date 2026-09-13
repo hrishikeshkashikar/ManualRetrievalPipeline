@@ -75,7 +75,7 @@ class TestQueryRequest:
         req = QueryRequest(query="Motor is overheating")
         assert req.query == "Motor is overheating"
         assert req.manual_filter is None
-        assert req.top_k == 5
+        assert req.top_k == 1
 
     def test_request_with_filter(self):
         """Test creating a request with manual filter."""

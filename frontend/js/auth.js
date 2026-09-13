@@ -38,6 +38,8 @@ const authManager = {
 
   show(allowRegister) {
     this.allowRegister = !!allowRegister;
+    document.body.classList.add('auth-open');
+    document.body.classList.remove('bootstrapping');
     const overlay = $('#auth-overlay');
     const switchEl = $('#login-switch');
     overlay?.classList.remove('hidden');
@@ -48,6 +50,8 @@ const authManager = {
 
   hide() {
     $('#auth-overlay')?.classList.add('hidden');
+    document.body.classList.remove('auth-open');
+    document.body.classList.remove('bootstrapping');
   },
 
   showLogin() {
@@ -105,6 +109,8 @@ const authManager = {
     } catch {
       this.hide();
       return true;
+    } finally {
+      document.body.classList.remove('bootstrapping');
     }
   },
 

@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ManualRAG — Machine Manual Diagnostic Assistant</title>
-  <meta name="description" content="AI-powered machine manual diagnosis. Upload PDF manuals and get structured diagnostic responses with issue identification, solutions, and safety warnings." />
+  <title>ManualRetrieval — Machine Manual Diagnostic Assistant</title>
+  <meta name="description" content="Ask machine manuals and get structured diagnostic responses with issue identification, solutions, and safety warnings." />
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="css/variables.css?v=5" />
-  <link rel="stylesheet" href="css/base.css?v=5" />
-  <link rel="stylesheet" href="css/animations.css?v=5" />
-  <link rel="stylesheet" href="css/layout.css?v=5" />
-  <link rel="stylesheet" href="css/components.css?v=5" />
-  <link rel="stylesheet" href="css/chat.css?v=5" />
+  <link rel="stylesheet" href="css/variables.css?v=9" />
+  <link rel="stylesheet" href="css/base.css?v=9" />
+  <link rel="stylesheet" href="css/animations.css?v=9" />
+  <link rel="stylesheet" href="css/layout.css?v=9" />
+  <link rel="stylesheet" href="css/components.css?v=9" />
+  <link rel="stylesheet" href="css/chat.css?v=9" />
   <script>
     (function () {
       try {
@@ -34,7 +34,6 @@
       cursor: pointer;
       transition: all var(--transition-base);
       background: var(--surface-glass);
-      backdrop-filter: blur(var(--surface-glass-blur));
     }
     .upload-dropzone:hover,
     .upload-dropzone.dragover {
@@ -78,9 +77,9 @@
   </style>
 
   <!-- Favicon (inline SVG as data URI) -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230057B8'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Segoe UI,sans-serif' font-size='16' font-weight='700' fill='%23fff'%3ES%3C/text%3E%3C/svg%3E" />
 </head>
-<body>
+<body class="bootstrapping">
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- APP LAYOUT                                                         -->
@@ -90,13 +89,9 @@
     <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-logo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-          </svg>
-        </div>
+        <div class="sidebar-logo" aria-hidden="true">S</div>
         <div class="sidebar-brand">
-          <h1>ManualRAG</h1>
+          <h1>ManualRetrieval</h1>
           <p>Diagnostic Assistant</p>
         </div>
       </div>
@@ -145,27 +140,30 @@
         </button>
       </nav>
 
-      <div class="sidebar-footer" style="flex-direction: column; align-items: stretch; gap: 8px; padding: var(--space-4);">
+      <div class="sidebar-footer">
         <div class="sidebar-user hidden" id="sidebar-user">
           <span class="sidebar-user-name truncate" id="sidebar-user-name">Signed in</span>
           <button type="button" class="icon-btn" id="logout-btn" title="Sign out">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           </button>
         </div>
-        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;">
-          <div class="sidebar-status" id="sidebar-status-bar" style="margin: 0; flex: 1;">
+
+        <div class="sidebar-footer-tools">
+          <button type="button" class="sidebar-status" id="sidebar-status-bar" title="System health">
             <span class="status-dot unknown" id="sidebar-status-dot"></span>
             <span class="status-label" id="sidebar-status-label">Connecting...</span>
-          </div>
+          </button>
           <button type="button" class="icon-btn" id="theme-toggle-btn" title="Toggle light / dark mode">
             <svg class="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
             <svg class="theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
           </button>
         </div>
-        <button class="btn btn-secondary btn-xs" id="sidebar-change-mount-btn" style="width: 100%; font-size: 11px; padding: 6px 8px; justify-content: center; display: flex; align-items: center; gap: 6px;" title="Change knowledge-base folder">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px;"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></svg>
+
+        <button type="button" class="btn btn-secondary btn-xs sidebar-mount-btn" id="sidebar-change-mount-btn" title="Change knowledge-base folder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></svg>
           <span id="sidebar-mount-label">Change Data Path</span>
         </button>
+
         <button class="sidebar-toggle" id="sidebar-toggle-btn" title="Toggle sidebar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m15 18-6-6 6-6"/>
@@ -200,7 +198,7 @@
           </div>
 
           <!-- Step 2: Welcome / Suggestions (hidden until PDF is selected) -->
-          <div class="chat-welcome" id="chat-welcome" style="display: none;">
+          <div class="chat-welcome hidden" id="chat-welcome">
             <div class="chat-welcome-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
@@ -221,12 +219,12 @@
           </div>
 
           <!-- Messages Area (initially hidden) -->
-          <div class="chat-messages" id="chat-messages" style="display: none;">
+          <div class="chat-messages hidden" id="chat-messages">
             <div class="chat-messages-inner" id="chat-messages-inner"></div>
           </div>
 
           <!-- Input Bar -->
-          <div class="chat-input-bar">
+          <div class="chat-input-bar hidden" id="chat-input-bar">
             <div class="chat-input-container">
               <div class="chat-input-controls">
                 <!-- Hidden: manual filter is now set from the PDF select step -->
@@ -237,8 +235,8 @@
                 <div class="chat-input-manual-chip" id="chat-input-manual-chip"></div>
                 <div class="range-group">
                   <span style="font-size: var(--text-xs); color: var(--text-tertiary);">Top-K</span>
-                  <input type="range" class="range" id="chat-topk" min="1" max="20" value="5" />
-                  <span class="range-value" id="chat-topk-value">5</span>
+                  <input type="range" class="range" id="chat-topk" min="1" max="20" value="1" />
+                  <span class="range-value" id="chat-topk-value">1</span>
                 </div>
               </div>
               <div class="chat-input-wrapper">
@@ -376,14 +374,22 @@
   <!-- LOGIN / REGISTER OVERLAY                                           -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <div class="auth-overlay hidden" id="auth-overlay">
+    <div class="auth-shell">
+      <aside class="auth-hero">
+        <div class="auth-hero-mark">S</div>
+        <p class="auth-hero-kicker">SEGULA Technologies</p>
+        <h1>ManualRetrieval</h1>
+        <p>Ask a machine manual and get structured diagnostics — locally, without the cloud.</p>
+      </aside>
     <div class="auth-card">
       <div class="auth-card-header">
         <div class="auth-brand">
-          <h1>ManualRAG</h1>
-          <p>Sign in to the diagnostic assistant</p>
+          <h1>Sign in</h1>
+          <p>Use your local ManualRetrieval account</p>
         </div>
         <button type="button" class="icon-btn" id="auth-theme-toggle-btn" title="Toggle light / dark mode">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
         </button>
       </div>
 
@@ -425,6 +431,7 @@
         </div>
       </div>
     </div>
+    </div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -435,14 +442,14 @@
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- SCRIPTS (order matters: utils → api → modules → app)              -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <script src="js/utils.js?v=5"></script>
-  <script src="js/api.js?v=5"></script>
-  <script src="js/auth.js?v=5"></script>
-  <script src="js/health.js?v=5"></script>
-  <script src="js/manuals.js?v=5"></script>
-  <script src="js/ingest.js?v=5"></script>
-  <script src="js/chat.js?v=5"></script>
-  <script src="js/app.js?v=5"></script>
+  <script src="js/utils.js?v=9"></script>
+  <script src="js/api.js?v=9"></script>
+  <script src="js/auth.js?v=9"></script>
+  <script src="js/health.js?v=9"></script>
+  <script src="js/manuals.js?v=9"></script>
+  <script src="js/ingest.js?v=9"></script>
+  <script src="js/chat.js?v=9"></script>
+  <script src="js/app.js?v=9"></script>
 
 </body>
 </html>

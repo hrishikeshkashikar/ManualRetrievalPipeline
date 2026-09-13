@@ -20,8 +20,13 @@ class ChatInterface {
   }
 
   init() {
-    this.bindEvents();
-    this.loadPdfSelector();
+    if (!this._bound) {
+      this.bindEvents();
+      this._bound = true;
+    }
+    if (!this.selectedManualId) {
+      this.loadPdfSelector();
+    }
   }
 
   bindEvents() {
@@ -151,8 +156,10 @@ class ChatInterface {
     // Hide PDF selector, show welcome
     const pdfSelect = $('#chat-pdf-select');
     const welcome = $('#chat-welcome');
-    if (pdfSelect) pdfSelect.style.display = 'none';
-    if (welcome) welcome.style.display = '';
+    const inputBar = $('#chat-input-bar');
+    if (pdfSelect) pdfSelect.classList.add('hidden');
+    if (welcome) welcome.classList.remove('hidden');
+    if (inputBar) inputBar.classList.remove('hidden');
 
     // Update active manual badge in welcome screen
     this.updateManualBadge();
@@ -223,9 +230,11 @@ class ChatInterface {
     const pdfSelect = $('#chat-pdf-select');
     const welcome = $('#chat-welcome');
     const messages = $('#chat-messages');
-    if (pdfSelect) pdfSelect.style.display = '';
-    if (welcome) welcome.style.display = 'none';
-    if (messages) messages.style.display = 'none';
+    const inputBar = $('#chat-input-bar');
+    if (pdfSelect) pdfSelect.classList.remove('hidden');
+    if (welcome) welcome.classList.add('hidden');
+    if (messages) messages.classList.add('hidden');
+    if (inputBar) inputBar.classList.add('hidden');
 
     // Clear the input bar chip
     this.updateInputBarChip();
@@ -258,7 +267,7 @@ class ChatInterface {
 
       // Also refresh the PDF selector grid if it's visible
       const pdfSelect = $('#chat-pdf-select');
-      if (pdfSelect && pdfSelect.style.display !== 'none') {
+      if (pdfSelect && !pdfSelect.classList.contains('hidden')) {
         this.renderPdfSelector();
       }
     } catch (err) {
@@ -284,7 +293,7 @@ class ChatInterface {
     this.updateSendButton();
 
     // Force the manual filter to the selected manual
-    const topK = parseInt($('#chat-topk')?.value || '5', 10);
+    const topK = parseInt($('#chat-topk')?.value || '1', 10);
 
     // Hide welcome, show messages area
     this.hideWelcome();
@@ -350,9 +359,9 @@ class ChatInterface {
     const pdfSelect = $('#chat-pdf-select');
     const welcome = $('#chat-welcome');
     const messages = $('#chat-messages');
-    if (pdfSelect) pdfSelect.style.display = 'none';
-    if (welcome) welcome.style.display = 'none';
-    if (messages) messages.style.display = 'flex';
+    if (pdfSelect) pdfSelect.classList.add('hidden');
+    if (welcome) welcome.classList.add('hidden');
+    if (messages) messages.classList.remove('hidden');
   }
 
   addMessage(role, content, isPlaceholder = false) {
@@ -360,7 +369,7 @@ class ChatInterface {
     const messagesInner = $('#chat-messages-inner');
     if (!messagesInner) return id;
 
-    const avatarChar = role === 'user' ? 'U' : '⚡';
+    const avatarChar = role === 'user' ? 'U' : 'M';
 
     const messageEl = createElement('div', {
       id,

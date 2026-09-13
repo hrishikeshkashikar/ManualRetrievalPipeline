@@ -70,7 +70,7 @@ class QueryRequest(BaseModel):
         description="Optional manual_id to restrict search to a specific manual",
     )
     top_k: int = Field(
-        default=5,
+        default=1,
         ge=1,
         le=20,
         description="Number of top results to use for answer generation",

@@ -1,7 +1,6 @@
 /* ── Chat Layout ──────────────────────────────────────────────────────── */
 
 .chat-view {
-  display: flex;
   flex-direction: column;
   height: 100%;
   padding: 0 !important;
@@ -39,15 +38,14 @@
 }
 
 .chat-welcome-icon {
-  width: 72px;
-  height: 72px;
-  border-radius: var(--radius-xl);
-  background: linear-gradient(135deg, var(--accent-primary-bg), var(--accent-secondary-bg));
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary-bg);
   border: 1px solid var(--surface-glass-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: float 3s ease-in-out infinite;
 }
 
 .chat-welcome-icon svg {
@@ -80,19 +78,17 @@
   padding: var(--space-3) var(--space-4);
   background: var(--surface-glass);
   border: 1px solid var(--surface-glass-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   font-size: var(--text-sm);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
-  backdrop-filter: blur(var(--surface-glass-blur));
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .chat-suggestion:hover {
   background: var(--surface-glass-hover);
   border-color: var(--accent-primary-dim);
   color: var(--text-primary);
-  transform: translateY(-1px);
 }
 
 /* ── Message Bubbles ──────────────────────────────────────────────────── */
@@ -120,13 +116,14 @@
 }
 
 .message-user .message-avatar {
-  background: linear-gradient(135deg, var(--accent-primary), hsl(175, 70%, 40%));
+  background: var(--btn-primary-bg);
   color: var(--text-inverse);
 }
 
 .message-assistant .message-avatar {
-  background: linear-gradient(135deg, var(--accent-secondary), hsl(260, 60%, 50%));
-  color: white;
+  background: var(--segula-navy);
+  color: var(--segula-white);
+  border: 1px solid var(--surface-glass-border);
 }
 
 .message-content {
@@ -143,8 +140,8 @@
 }
 
 .message-user .message-bubble {
-  background: linear-gradient(135deg, hsla(175, 80%, 50%, 0.15), hsla(175, 60%, 40%, 0.1));
-  border: 1px solid hsla(175, 80%, 50%, 0.2);
+  background: var(--accent-primary-bg);
+  border: 1px solid var(--accent-primary-dim);
   border-top-right-radius: var(--radius-sm);
 }
 
@@ -152,7 +149,6 @@
   background: var(--surface-glass);
   border: 1px solid var(--surface-glass-border);
   border-top-left-radius: var(--radius-sm);
-  backdrop-filter: blur(var(--surface-glass-blur));
 }
 
 .message-meta {
@@ -378,15 +374,15 @@
   font-family: var(--font-mono);
   color: var(--accent-secondary);
   background: var(--accent-secondary-bg);
-  border: 1px solid hsla(260, 70%, 65%, 0.15);
+  border: 1px solid var(--accent-secondary-bg);
   border-radius: var(--radius-full);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .source-chip:hover {
-  background: hsla(260, 70%, 65%, 0.15);
-  border-color: var(--accent-secondary);
+  background: var(--accent-primary-bg);
+  border-color: var(--accent-primary);
 }
 
 .source-chip svg {
@@ -425,7 +421,8 @@
 
 .chat-input-bar {
   padding: var(--space-4) var(--space-8) var(--space-6);
-  background: linear-gradient(to top, var(--bg-primary) 60%, transparent);
+  background: var(--bg-primary);
+  border-top: 1px solid var(--surface-glass-border);
 }
 
 .chat-input-container {
@@ -483,16 +480,14 @@
   width: 40px;
   height: 40px;
   border-radius: var(--radius-md);
-  background: var(--accent-primary);
+  background: var(--btn-primary-bg);
   color: var(--text-inverse);
   flex-shrink: 0;
-  transition: all var(--transition-fast);
-  box-shadow: var(--shadow-glow-primary);
+  transition: background-color var(--transition-fast);
 }
 
 .chat-send-btn:hover:not(:disabled) {
-  background: hsl(175, 80%, 45%);
-  transform: scale(1.05);
+  background: var(--btn-primary-hover);
 }
 
 .chat-send-btn:disabled {
@@ -583,18 +578,15 @@
   padding: var(--space-6) var(--space-4);
   background: var(--surface-glass);
   border: 1px solid var(--surface-glass-border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all var(--transition-base);
-  backdrop-filter: blur(var(--surface-glass-blur));
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
   text-align: center;
 }
 
 .pdf-select-card:hover {
   background: var(--surface-glass-hover);
-  border-color: var(--accent-primary-dim);
-  box-shadow: 0 0 24px var(--accent-primary-glow), var(--shadow-md);
-  transform: translateY(-2px);
+  border-color: var(--accent-primary);
 }
 
 .pdf-select-card:active {
@@ -614,7 +606,7 @@
 }
 
 .pdf-select-card:hover .pdf-select-card-icon {
-  background: linear-gradient(135deg, var(--accent-primary-bg), var(--accent-secondary-bg));
+  background: var(--accent-primary-bg);
   color: var(--accent-primary);
 }
 
@@ -639,7 +631,7 @@
   gap: var(--space-2);
   padding: var(--space-2) var(--space-4);
   background: var(--accent-primary-bg);
-  border: 1px solid hsla(175, 80%, 50%, 0.2);
+  border: 1px solid var(--accent-primary-dim);
   border-radius: var(--radius-full);
   font-size: var(--text-sm);
   color: var(--accent-primary);
@@ -657,17 +649,18 @@
   margin-left: var(--space-2);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-md);
-  background: hsla(175, 80%, 50%, 0.12);
+  background: var(--accent-primary-bg);
   color: var(--accent-primary);
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast);
   border: none;
 }
 
 .change-manual-btn:hover {
-  background: hsla(175, 80%, 50%, 0.22);
+  background: var(--btn-primary-bg);
+  color: var(--text-inverse);
 }
 
 /* ── Input Bar Manual Chip ───────────────────────────────────────────── */
@@ -681,7 +674,7 @@
   font-family: var(--font-mono);
   color: var(--accent-primary);
   background: var(--accent-primary-bg);
-  border: 1px solid hsla(175, 80%, 50%, 0.15);
+  border: 1px solid var(--accent-primary-dim);
   border-radius: var(--radius-full);
   white-space: nowrap;
 }

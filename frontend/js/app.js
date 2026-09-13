@@ -8,6 +8,7 @@ let currentView = 'chat';
 
 function navigateTo(view) {
   currentView = view;
+  closeSourcePanel();
 
   // Update nav items
   $$('.nav-item').forEach(item => {

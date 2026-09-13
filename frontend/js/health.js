@@ -88,19 +88,19 @@ class HealthDashboard {
         name: 'Ollama Connection',
         ok: health.ollama_connected,
         label: health.ollama_connected ? 'Online' : 'Offline',
-        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2Z"/><path d="M12 2a10 10 0 0 1 10 10"/><circle cx="12" cy="12" r="6"/></svg>`,
+        icon: `<svg class="health-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10H12V2Z"/><path d="M12 2a10 10 0 0 1 10 10"/><circle cx="12" cy="12" r="6"/></svg>`,
       },
       {
         name: 'Vision Model',
         ok: health.ollama_model_available,
         label: health.ollama_model_available ? 'Online' : 'Offline',
-        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
+        icon: `<svg class="health-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
       },
       {
         name: 'Embedding Model',
         ok: health.embedding_model_loaded,
         label: health.embedding_model_loaded ? 'Online' : 'Offline',
-        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
+        icon: `<svg class="health-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
       },
       {
         name: 'Reranker Model',
@@ -108,13 +108,13 @@ class HealthDashboard {
         label: !health.reranker_enabled
           ? 'Disabled (edge)'
           : (health.reranker_loaded ? 'Online' : 'Offline'),
-        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>`,
+        icon: `<svg class="health-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>`,
       },
       {
         name: 'Vector Store',
         ok: health.vector_store_ready,
         label: health.vector_store_ready ? 'Online' : 'Offline',
-        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>`,
+        icon: `<svg class="health-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>`,
       },
     ];
 
@@ -169,14 +169,12 @@ class HealthDashboard {
       <h3 style="font-size: var(--text-base); font-weight: var(--weight-semibold); margin-bottom: var(--space-4); color: var(--text-secondary);">Components</h3>
       <div class="stagger-children" style="display: flex; flex-direction: column; gap: var(--space-3);">
         ${components.map(c => `
-          <div class="card card-compact" style="border-color: ${c.ok ? 'var(--color-success-border)' : 'var(--color-danger-border)'};">
-            <div style="display: flex; align-items: center; gap: var(--space-3);">
-              <div style="width: 36px; height: 36px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; background: ${c.ok ? 'var(--color-success-bg)' : 'var(--color-danger-bg)'}; color: ${c.ok ? 'var(--color-success)' : 'var(--color-danger)'};">
+          <div class="card card-compact health-component-card" style="border-color: ${c.ok ? 'var(--color-success-border)' : 'var(--color-danger-border)'};">
+            <div class="health-component-row">
+              <div class="health-component-icon ${c.ok ? 'is-ok' : 'is-bad'}" aria-hidden="true">
                 ${c.icon}
               </div>
-              <div style="flex: 1;">
-                <div style="font-size: var(--text-sm); font-weight: var(--weight-medium);">${c.name}</div>
-              </div>
+              <div class="health-component-name">${c.name}</div>
               <span class="badge ${c.ok ? 'badge-success' : 'badge-danger'}">${c.label}</span>
             </div>
           </div>

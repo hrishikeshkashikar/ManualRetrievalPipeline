@@ -30,19 +30,16 @@
 
 /* Primary */
 .btn-primary {
-  background: var(--accent-primary);
+  background: var(--btn-primary-bg);
   color: var(--text-inverse);
-  box-shadow: var(--shadow-sm), var(--shadow-glow-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: hsl(175, 80%, 45%);
-  box-shadow: var(--shadow-md), 0 0 30px var(--accent-primary-glow);
-  transform: translateY(-1px);
+  background: var(--btn-primary-hover);
 }
 
 .btn-primary:active:not(:disabled) {
-  transform: translateY(0);
+  transform: none;
 }
 
 /* Secondary (glass) */
@@ -50,13 +47,11 @@
   background: var(--surface-glass);
   border-color: var(--surface-glass-border);
   color: var(--text-primary);
-  backdrop-filter: blur(var(--surface-glass-blur));
 }
 
 .btn-secondary:hover:not(:disabled) {
   background: var(--surface-glass-hover);
   border-color: var(--surface-glass-border-hover);
-  transform: translateY(-1px);
 }
 
 /* Ghost */
@@ -104,12 +99,10 @@
 
 .card {
   background: var(--surface-glass);
-  backdrop-filter: blur(var(--surface-glass-blur));
-  -webkit-backdrop-filter: blur(var(--surface-glass-blur));
   border: 1px solid var(--surface-glass-border);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
-  transition: all var(--transition-base);
+  transition: border-color var(--transition-base);
 }
 
 .card:hover {
@@ -177,13 +170,13 @@
 .badge-primary {
   background: var(--accent-primary-bg);
   color: var(--accent-primary);
-  border-color: hsla(175, 80%, 50%, 0.2);
+  border-color: var(--accent-primary-dim);
 }
 
 .badge-secondary {
   background: var(--accent-secondary-bg);
   color: var(--accent-secondary);
-  border-color: hsla(260, 70%, 65%, 0.2);
+  border-color: var(--accent-secondary-dim);
 }
 
 .badge-success {
@@ -326,10 +319,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: var(--bg-primary);
-  background: color-mix(in srgb, var(--bg-primary) 75%, black 25%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: color-mix(in srgb, var(--bg-primary) 92%, black 8%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -399,7 +389,6 @@
   border: 1px solid var(--surface-glass-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(var(--surface-glass-blur));
   max-width: 380px;
   pointer-events: auto;
   animation: slideInRight var(--transition-slow) both;
@@ -582,7 +571,7 @@
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  background: var(--btn-primary-bg);
   border-radius: var(--radius-full);
   transition: width var(--transition-slow);
 }
@@ -615,6 +604,53 @@
   border: 1px solid var(--surface-glass-border);
 }
 
+/* ── Health component rows ────────────────────────────────────────────── */
+
+.health-component-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.health-component-name {
+  flex: 1;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+
+.health-component-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+}
+
+.health-component-icon.is-ok {
+  background: var(--accent-primary-bg);
+  color: var(--accent-primary);
+  border-color: rgba(0, 87, 184, 0.28);
+}
+
+.health-component-icon.is-bad {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-color: var(--color-danger-border);
+}
+
+.health-component-icon .health-icon-svg {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  display: block;
+  flex-shrink: 0;
+}
+
 /* ── Auth overlay (login / register pages) ────────────────────────────── */
 
 .auth-overlay {
@@ -622,12 +658,9 @@
   inset: 0;
   z-index: var(--z-login);
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  padding: var(--space-6);
-  background: color-mix(in srgb, var(--bg-primary) 82%, black 18%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--segula-navy);
 }
 
 .auth-overlay.hidden {
@@ -635,14 +668,80 @@
   pointer-events: none;
 }
 
+.auth-shell {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(320px, 480px);
+  width: 100%;
+  min-height: 100%;
+}
+
+.auth-hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 64px;
+  background: var(--segula-blue);
+  color: var(--segula-white);
+}
+
+.auth-hero-mark {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--segula-white);
+  color: var(--segula-blue);
+  font-weight: 700;
+  font-size: 22px;
+  margin-bottom: 24px;
+}
+
+.auth-hero-kicker {
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  margin-bottom: 12px;
+}
+
+.auth-hero h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+
+.auth-hero p {
+  font-size: 1rem;
+  max-width: 360px;
+  opacity: 0.9;
+  line-height: 1.5;
+}
+
 .auth-card {
-  width: min(420px, 100%);
-  background: var(--bg-elevated);
-  border: 1px solid var(--surface-glass-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl);
-  padding: var(--space-8);
+  width: 100%;
+  background: var(--bg-primary);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 56px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   position: relative;
+}
+
+@media (max-width: 800px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
+  }
+  .auth-hero {
+    padding: 32px 24px 24px;
+  }
+  .auth-card {
+    padding: 32px 24px;
+  }
 }
 
 .auth-card-header {
@@ -751,8 +850,7 @@
   color: var(--text-secondary);
 }
 
-.sidebar-collapsed .sidebar-user-name,
-.sidebar-collapsed .sidebar-user .icon-btn {
+.sidebar-collapsed .sidebar-user-name {
   display: none;
 }
 
@@ -760,7 +858,7 @@
 
 .lightbox-overlay {
   z-index: var(--z-lightbox);
-  background: color-mix(in srgb, var(--bg-primary) 88%, black 12%);
+  background: rgba(0, 26, 58, 0.92);
   padding: var(--space-8);
 }
 

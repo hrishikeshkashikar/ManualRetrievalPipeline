@@ -43,7 +43,7 @@ class RAGPipeline:
         self,
         query: str,
         manual_filter: str | None = None,
-        top_k: int = 5,
+        top_k: int = 1,
     ) -> QueryResponse:
         """
         Process a user query through the full RAG pipeline.
@@ -148,7 +148,7 @@ class RAGPipeline:
         self,
         query: str,
         manual_filter: str | None = None,
-        top_k: int = 5,
+        top_k: int = 1,
     ):
         """
         Process a query with SSE streaming response.
